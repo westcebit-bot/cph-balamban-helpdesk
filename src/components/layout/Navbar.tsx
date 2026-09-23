@@ -4,12 +4,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { 
   Bell, 
   LogOut, 
-  Shield, 
-  Wrench, 
-  Building2, 
-  UserCheck, 
   CheckCheck,
-  User as UserIcon,
   LogIn
 } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
@@ -62,26 +57,34 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModa
               <span>+ New IT Ticket</span>
             </button>
 
-            {/* Login / Auth Modal */}
-            <button
-              onClick={onOpenLoginModal}
-              className="bg-sky-900 hover:bg-sky-800 text-amber-300 font-bold px-3 py-1.5 rounded-md text-xs border border-sky-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Login Portal</span>
-            </button>
+            {/* Login Portal Button (Only visible when user is NOT logged in) */}
+            {!user && (
+              <button
+                onClick={onOpenLoginModal}
+                className="bg-sky-900 hover:bg-sky-800 text-amber-300 font-bold px-3 py-1.5 rounded-md text-xs border border-sky-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Login Portal</span>
+              </button>
+            )}
 
-            {/* Logged in User Profile Info (No Demo Switcher) */}
-            <div className="hidden sm:flex items-center space-x-2 bg-sky-900/80 px-3 py-1 rounded-md border border-sky-800">
-              <div className="w-6 h-6 rounded-full bg-sky-700 text-white flex items-center justify-center font-bold text-xs border border-sky-500">
-                {user?.full_name?.charAt(0) || 'A'}
+            {/* Logged in User Profile Info */}
+            {user && (
+              <div className="flex items-center space-x-2 bg-sky-900/80 px-3 py-1 rounded-md border border-sky-800">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-sky-500" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-sky-700 text-white flex items-center justify-center font-bold text-xs border border-sky-500">
+                    {user.full_name?.charAt(0) || 'U'}
+                  </div>
+                )}
+                <div className="text-left hidden sm:block">
+                  <span className="text-xs font-bold text-white block leading-none">{user.full_name}</span>
+                  <span className="text-[10px] text-sky-300 font-medium block mt-0.5">{user.department_name}</span>
+                </div>
+                {getRoleBadge(role)}
               </div>
-              <div className="text-left">
-                <span className="text-xs font-bold text-white block leading-none">{user?.full_name}</span>
-                <span className="text-[10px] text-sky-300 font-medium block mt-0.5">{user?.department_name}</span>
-              </div>
-              {getRoleBadge(role)}
-            </div>
+            )}
 
             {/* Notifications Menu */}
             <div className="relative">
