@@ -56,6 +56,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState(false);
 
+  // Track deleted user IDs and usernames so deleted accounts can NEVER log in again
+  const [deletedUserIds, setDeletedUserIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('cph_helpdesk_deleted_users');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Sync usersList to localStorage whenever usersList changes
   useEffect(() => {
     localStorage.setItem('cph_helpdesk_users', JSON.stringify(usersList));
@@ -87,6 +93,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (err) {
           console.error('Failed to sync users across tabs:', err);
         }
+      }
+      if (e.key === 'cph_helpdesk_deleted_users' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setDeletedUserIds(parsed);
+        } catch (err) {}
       }
       if (e.key === 'cph_helpdesk_current_user_id') {
         const savedUserId = e.newValue;
@@ -132,12 +144,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Permanently delete user account
+  // Permanently delete user account & add to deleted blacklist
   const deleteUser = (userId: string) => {
+    const target = usersList.find((u) => u.id === userId);
+
     setUsersList((prev) => {
       const updated = prev.filter((u) => u.id !== userId);
       localStorage.setItem('cph_helpdesk_users', JSON.stringify(updated));
       return updated;
+    });
+
+    setDeletedUserIds((prev) => {
+      const updated = [
+        ...prev, 
+        userId, 
+        target?.username?.toLowerCase() || '', 
+        target?.email?.toLowerCase() || ''
+      ].filter(Boolean);
+      const unique = Array.from(new Set(updated));
+      localStorage.setItem('cph_helpdesk_deleted_users', JSON.stringify(unique));
+      return unique;
     });
 
     // If active user was deleted, log out
@@ -168,27 +194,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const q = usernameInput.trim().toLowerCase();
+
+      // Check if user or username is in deleted blacklist
+      if (deletedUserIds.includes(q)) {
+        setIsLoading(false);
+        return { success: false, message: 'This user account has been deleted and cannot log in.' };
+      }
       
       const found = usersList.find((u) => {
         const uName = (u.username || '').toLowerCase();
         const uEmail = (u.email || '').toLowerCase();
-        return uName === q || uEmail === q;
+        return (uName === q || uEmail === q) && !deletedUserIds.includes(u.id);
       });
 
       if (found) {
+        if (!found.is_active) {
+          setIsLoading(false);
+          return { success: false, message: 'This account is deactivated. Please contact your IT administrator.' };
+        }
         setUser(found);
         setIsLoading(false);
         return { success: true };
       }
 
-      // Fallback check in INITIAL_USERS (e.g. superadmin, npasco)
+      // Fallback check in INITIAL_USERS only if NOT in deleted blacklist
       const initialMatch = INITIAL_USERS.find((u) => {
         const uName = (u.username || '').toLowerCase();
         const uEmail = (u.email || '').toLowerCase();
-        return uName === q || uEmail === q;
+        return (uName === q || uEmail === q) && !deletedUserIds.includes(u.id) && !deletedUserIds.includes(uName);
       });
 
       if (initialMatch) {
+        if (!initialMatch.is_active) {
+          setIsLoading(false);
+          return { success: false, message: 'This account is deactivated. Please contact your IT administrator.' };
+        }
         setUser(initialMatch);
         setUsersList((prev) => {
           const exists = prev.some((u) => u.id === initialMatch.id || u.username.toLowerCase() === initialMatch.username.toLowerCase());
