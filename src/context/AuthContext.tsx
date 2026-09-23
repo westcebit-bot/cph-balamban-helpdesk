@@ -70,6 +70,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  // Real-time synchronization across normal browser tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'cph_helpdesk_users' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setUsersList(parsed);
+            const savedUserId = localStorage.getItem('cph_helpdesk_current_user_id');
+            if (savedUserId) {
+              const found = parsed.find((u: UserProfile) => u.id === savedUserId);
+              setUser(found || null);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to sync users across tabs:', err);
+        }
+      }
+      if (e.key === 'cph_helpdesk_current_user_id') {
+        const savedUserId = e.newValue;
+        if (!savedUserId) {
+          setUser(null);
+        } else {
+          setUsersList((currentList) => {
+            const found = currentList.find((u) => u.id === savedUserId);
+            if (found) setUser(found);
+            return currentList;
+          });
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const switchUser = (userId: string) => {
     const target = usersList.find((u) => u.id === userId);
     if (target) {

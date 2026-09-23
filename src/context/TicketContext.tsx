@@ -121,6 +121,27 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem('cph_helpdesk_comments', JSON.stringify(comments));
   }, [comments]);
 
+  // Real-time synchronization across normal browser tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'cph_helpdesk_tickets' && e.newValue) {
+        try { setTickets(JSON.parse(e.newValue)); } catch (err) {}
+      }
+      if (e.key === 'cph_helpdesk_assets' && e.newValue) {
+        try { setAssets(JSON.parse(e.newValue)); } catch (err) {}
+      }
+      if (e.key === 'cph_helpdesk_comments' && e.newValue) {
+        try { setComments(JSON.parse(e.newValue)); } catch (err) {}
+      }
+      if (e.key === 'cph_helpdesk_audit_logs' && e.newValue) {
+        try { setAuditLogs(JSON.parse(e.newValue)); } catch (err) {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const addAuditLog = (action: string, targetTable: string, targetId?: string, details?: any) => {
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
