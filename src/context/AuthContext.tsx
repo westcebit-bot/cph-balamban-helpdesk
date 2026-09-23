@@ -28,13 +28,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usersList, setUsersList] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('cph_helpdesk_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    let list: UserProfile[] = saved ? JSON.parse(saved) : INITIAL_USERS;
+
+    // Migrate any cached user objects missing username field
+    list = list.map((u) => {
+      if (!u.username) {
+        const defaultUsername = u.email ? u.email.split('@')[0] : u.full_name.toLowerCase().replace(/\s+/g, '.');
+        return { ...u, username: defaultUsername };
+      }
+      return u;
+    });
+
+    return list;
   });
 
   const [user, setUser] = useState<UserProfile | null>(() => {
     const savedUserId = localStorage.getItem('cph_helpdesk_current_user_id');
     const found = usersList.find((u) => u.id === savedUserId);
-    return found || usersList[0];
+    return found || null;
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -62,9 +73,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const q = usernameInput.trim().toLowerCase();
-      const found = usersList.find(
-        (u) => u.username.toLowerCase() === q || (u.email && u.email.toLowerCase() === q)
-      );
+      
+      const found = usersList.find((u) => {
+        const uName = (u.username || '').toLowerCase();
+        const uEmail = (u.email || '').toLowerCase();
+        return uName === q || uEmail === q;
+      });
 
       if (found) {
         setUser(found);
@@ -84,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const q = payload.username.trim().toLowerCase();
-      const exists = usersList.some((u) => u.username.toLowerCase() === q);
+      const exists = usersList.some((u) => (u.username || '').toLowerCase() === q);
 
       if (exists) {
         setIsLoading(false);
@@ -105,7 +119,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         is_active: true,
       };
 
-      setUsersList((prev) => [newUser, ...prev]);
+      const updatedList = [newUser, ...usersList];
+      setUsersList(updatedList);
+      localStorage.setItem('cph_helpdesk_users', JSON.stringify(updatedList));
       setUser(newUser);
       setIsLoading(false);
 
