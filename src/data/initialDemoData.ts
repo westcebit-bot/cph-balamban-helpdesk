@@ -1,4 +1,4 @@
-import { 
+import type { 
   UserProfile, 
   Department, 
   TicketCategory, 
@@ -24,6 +24,7 @@ export const INITIAL_DEPARTMENTS: Department[] = [
 export const INITIAL_USERS: UserProfile[] = [
   {
     id: 'usr-admin-1',
+    username: 'admin',
     email: 'admin.reyes@cphbalamban.gov.ph',
     full_name: 'Engr. Antonio Reyes',
     employee_id: 'CPH-EMP-001',
@@ -36,6 +37,7 @@ export const INITIAL_USERS: UserProfile[] = [
   },
   {
     id: 'usr-tech-1',
+    username: 'mark.tan',
     email: 'mark.tan@cphbalamban.gov.ph',
     full_name: 'Mark Tan',
     employee_id: 'CPH-EMP-102',
@@ -48,6 +50,7 @@ export const INITIAL_USERS: UserProfile[] = [
   },
   {
     id: 'usr-tech-2',
+    username: 'sarah.lim',
     email: 'sarah.lim@cphbalamban.gov.ph',
     full_name: 'Sarah Lim',
     employee_id: 'CPH-EMP-103',
@@ -60,6 +63,7 @@ export const INITIAL_USERS: UserProfile[] = [
   },
   {
     id: 'usr-supervisor-1',
+    username: 'maria.santos',
     email: 'maria.santos@cphbalamban.gov.ph',
     full_name: 'Dr. Maria Santos',
     employee_id: 'CPH-EMP-201',
@@ -72,6 +76,7 @@ export const INITIAL_USERS: UserProfile[] = [
   },
   {
     id: 'usr-supervisor-2',
+    username: 'elena.cruz',
     email: 'elena.cruz@cphbalamban.gov.ph',
     full_name: 'Mrs. Elena Cruz',
     employee_id: 'CPH-EMP-202',
@@ -84,6 +89,7 @@ export const INITIAL_USERS: UserProfile[] = [
   },
   {
     id: 'usr-employee-1',
+    username: 'juan.delacruz',
     email: 'juan.delacruz@cphbalamban.gov.ph',
     full_name: 'Juan dela Cruz',
     employee_id: 'CPH-EMP-305',
@@ -96,6 +102,7 @@ export const INITIAL_USERS: UserProfile[] = [
   },
   {
     id: 'usr-employee-2',
+    username: 'joy.ramos',
     email: 'joy.ramos@cphbalamban.gov.ph',
     full_name: 'Nurse Joy Ramos',
     employee_id: 'CPH-EMP-410',
@@ -313,7 +320,7 @@ export const INITIAL_TICKETS: Ticket[] = [
     asset_tag: 'CPH-AST-0309',
     assigned_technician_id: 'usr-tech-1',
     assigned_technician_name: 'Mark Tan',
-    created_at: new Date(Date.now() - 25 * 60 * 1000).toISOString(), // 25 mins ago
+    created_at: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     first_responded_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
   },
@@ -340,7 +347,7 @@ export const INITIAL_TICKETS: Ticket[] = [
     asset_tag: 'CPH-AST-0204',
     assigned_technician_id: 'usr-tech-2',
     assigned_technician_name: 'Sarah Lim',
-    created_at: new Date(Date.now() - 50 * 60 * 1000).toISOString(), // 50 mins ago
+    created_at: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
     first_responded_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
   },
@@ -365,7 +372,7 @@ export const INITIAL_TICKETS: Ticket[] = [
     device_type: 'Scanner',
     location: 'Medical Records 1F',
     asset_tag: 'CPH-AST-0412',
-    created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString(), // 2 hours ago
+    created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
   },
   {
@@ -388,7 +395,7 @@ export const INITIAL_TICKETS: Ticket[] = [
     status: 'NEW',
     device_type: 'Desktop Computer',
     location: 'Ward Station 3F',
-    created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(), // 10 mins ago
+    created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
   },
   {
@@ -414,7 +421,7 @@ export const INITIAL_TICKETS: Ticket[] = [
     assigned_technician_id: 'usr-tech-1',
     assigned_technician_name: 'Mark Tan',
     resolution_summary: 'Cleaned interior dust filters, updated antivirus definitions, and verified disk health status.',
-    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
     first_responded_at: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
     resolved_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),

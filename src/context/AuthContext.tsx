@@ -1,14 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { UserProfile, UserRole } from '../types';
-import { INITIAL_USERS } from '../data/initialDemoData';
+import { INITIAL_USERS, INITIAL_DEPARTMENTS } from '../data/initialDemoData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+
+interface RegisterPayload {
+  full_name: string;
+  username: string;
+  password?: string;
+  department_id: string;
+  role?: UserRole;
+  employee_id?: string;
+}
 
 interface AuthContextType {
   user: UserProfile | null;
   role: UserRole;
-  demoUsers: UserProfile[];
-  switchUser: (userId: string) => void;
-  loginWithEmail: (email: string) => Promise<boolean>;
+  usersList: UserProfile[];
+  loginWithUsername: (username: string, password?: string) => Promise<{ success: boolean; message?: string }>;
+  registerAccount: (payload: RegisterPayload) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -16,7 +25,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [usersList] = useState<UserProfile[]>(() => {
+  const [usersList, setUsersList] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('cph_helpdesk_users');
     return saved ? JSON.parse(saved) : INITIAL_USERS;
   });
@@ -24,7 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(() => {
     const savedUserId = localStorage.getItem('cph_helpdesk_current_user_id');
     const found = usersList.find((u) => u.id === savedUserId);
-    return found || usersList[0]; // Default to Admin for immediate exploration
+    return found || usersList[0];
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -36,71 +45,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user) {
       localStorage.setItem('cph_helpdesk_current_user_id', user.id);
+    } else {
+      localStorage.removeItem('cph_helpdesk_current_user_id');
     }
   }, [user]);
 
-  // Handle Supabase auth state if configured
-  useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
-
-    const client = supabase;
-
-    client.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        client
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) setUser(data as UserProfile);
-          });
-      }
-    });
-
-    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        client
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) setUser(data as UserProfile);
-          });
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const switchUser = (userId: string) => {
-    const target = usersList.find((u) => u.id === userId);
-    if (target) {
-      setUser(target);
-    }
-  };
-
-  const loginWithEmail = async (email: string): Promise<boolean> => {
+  const loginWithUsername = async (usernameInput: string, _password?: string): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured && supabase) {
-        const { error } = await supabase.auth.signInWithOtp({ email });
+      const q = usernameInput.trim().toLowerCase();
+      const found = usersList.find(
+        (u) => u.username.toLowerCase() === q || (u.email && u.email.toLowerCase() === q)
+      );
+
+      if (found) {
+        setUser(found);
         setIsLoading(false);
-        return !error;
+        return { success: true };
       } else {
-        const found = usersList.find((u) => u.email.toLowerCase() === email.toLowerCase());
-        if (found) {
-          setUser(found);
-          setIsLoading(false);
-          return true;
-        }
         setIsLoading(false);
-        return false;
+        return { success: false, message: 'Invalid username or password. User account not found.' };
       }
     } catch (err) {
       setIsLoading(false);
-      return false;
+      return { success: false, message: 'An authentication error occurred.' };
+    }
+  };
+
+  const registerAccount = async (payload: RegisterPayload): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true);
+    try {
+      const q = payload.username.trim().toLowerCase();
+      const exists = usersList.some((u) => u.username.toLowerCase() === q);
+
+      if (exists) {
+        setIsLoading(false);
+        return { success: false, message: 'Username already taken. Please choose another username.' };
+      }
+
+      const dept = INITIAL_DEPARTMENTS.find((d) => d.id === payload.department_id);
+
+      const newUser: UserProfile = {
+        id: `usr-${Date.now()}`,
+        username: payload.username.trim(),
+        email: `${payload.username.trim()}@cphbalamban.gov.ph`,
+        full_name: payload.full_name.trim(),
+        employee_id: payload.employee_id?.trim(),
+        role: payload.role || 'employee',
+        department_id: payload.department_id,
+        department_name: dept?.name || 'Hospital Department',
+        is_active: true,
+      };
+
+      setUsersList((prev) => [newUser, ...prev]);
+      setUser(newUser);
+      setIsLoading(false);
+
+      return { success: true };
+    } catch (err) {
+      setIsLoading(false);
+      return { success: false, message: 'Failed to create user account.' };
     }
   };
 
@@ -108,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isSupabaseConfigured && supabase) {
       supabase.auth.signOut();
     }
-    setUser(usersList.find((u) => u.role === 'employee') || usersList[0]);
+    setUser(null);
   };
 
   return (
@@ -116,9 +120,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         role: user?.role || 'employee',
-        demoUsers: usersList,
-        switchUser,
-        loginWithEmail,
+        usersList,
+        loginWithUsername,
+        registerAccount,
         logout,
         isLoading,
       }}

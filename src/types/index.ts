@@ -2,12 +2,13 @@ export type UserRole = 'admin' | 'technician' | 'supervisor' | 'employee';
 
 export interface UserProfile {
   id: string;
-  email: string;
+  username: string;
+  email?: string;
   full_name: string;
   employee_id?: string;
   role: UserRole;
-  department_id?: string;
-  department_name?: string;
+  department_id: string;
+  department_name: string;
   phone?: string;
   location?: string;
   is_active: boolean;
