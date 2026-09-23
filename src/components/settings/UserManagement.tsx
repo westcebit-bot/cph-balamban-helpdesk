@@ -1,52 +1,28 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useTickets } from '../../context/TicketContext';
-import type { UserProfile, UserRole } from '../../types';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Users, UserCheck, UserX, Trash2, Search, Shield, Building, Edit } from 'lucide-react';
+import { Users, UserCheck, UserX, Trash2, Search } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
-  const { usersList } = useAuth();
-  const { departments } = useTickets();
-
-  const [localUsers, setLocalUsers] = useState<UserProfile[]>(() => {
-    const saved = localStorage.getItem('cph_helpdesk_users');
-    return saved ? JSON.parse(saved) : usersList;
-  });
+  const { usersList, toggleUserStatus, deleteUser } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
 
-  const syncUsers = (updated: UserProfile[]) => {
-    setLocalUsers(updated);
-    localStorage.setItem('cph_helpdesk_users', JSON.stringify(updated));
-  };
-
-  const toggleUserStatus = (userId: string) => {
-    const updated = localUsers.map((u) => {
-      if (u.id === userId) {
-        return { ...u, is_active: !u.is_active };
-      }
-      return u;
-    });
-    syncUsers(updated);
-  };
-
-  const deleteUser = (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user account?')) {
-      const updated = localUsers.filter((u) => u.id !== userId);
-      syncUsers(updated);
+  const handleDelete = (userId: string, fullName: string) => {
+    if (window.confirm(`Are you sure you want to delete account "${fullName}" permanently?`)) {
+      deleteUser(userId);
     }
   };
 
-  const filteredUsers = localUsers.filter((u) => {
+  const filteredUsers = usersList.filter((u) => {
     if (roleFilter && u.role !== roleFilter) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       return (
         u.full_name.toLowerCase().includes(q) ||
-        u.username.toLowerCase().includes(q) ||
+        (u.username && u.username.toLowerCase().includes(q)) ||
         (u.department_name && u.department_name.toLowerCase().includes(q))
       );
     }
@@ -112,7 +88,7 @@ export const UserManagement: React.FC = () => {
                 <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3">
                     <p className="font-bold text-slate-900">{u.full_name}</p>
-                    <p className="text-[11px] text-sky-800 font-mono">@{u.username}</p>
+                    <p className="text-[11px] text-sky-800 font-mono">@{u.username || 'user'}</p>
                   </td>
                   <td className="p-3">
                     <p className="font-medium text-slate-800">{u.department_name}</p>
@@ -158,7 +134,7 @@ export const UserManagement: React.FC = () => {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => deleteUser(u.id)}
+                      onClick={() => handleDelete(u.id, u.full_name)}
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
                     </Button>

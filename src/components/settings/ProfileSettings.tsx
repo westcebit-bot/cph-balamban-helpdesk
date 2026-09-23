@@ -1,16 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { User, Key, Lock, Eye, EyeOff, Upload, CheckCircle2, Shield, Phone, MapPin, Building } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 export const ProfileSettings: React.FC = () => {
-  const { user, switchUser } = useAuth();
+  const { user, updateUserProfile } = useAuth();
 
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [location, setLocation] = useState(user?.location || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
+
+  // Keep state synced with active user profile
+  useEffect(() => {
+    if (user) {
+      setFullName(user.full_name || '');
+      setPhone(user.phone || '');
+      setLocation(user.location || '');
+      setAvatarUrl(user.avatar_url || '');
+    }
+  }, [user]);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -39,21 +49,12 @@ export const ProfileSettings: React.FC = () => {
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (user) {
-      const updatedUser = {
-        ...user,
+      updateUserProfile(user.id, {
         full_name: fullName,
         phone,
         location,
         avatar_url: avatarUrl,
-      };
-
-      const savedList = localStorage.getItem('cph_helpdesk_users');
-      if (savedList) {
-        const list = JSON.parse(savedList);
-        const nextList = list.map((u: any) => (u.id === user.id ? updatedUser : u));
-        localStorage.setItem('cph_helpdesk_users', JSON.stringify(nextList));
-      }
-      switchUser(user.id);
+      });
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     }
@@ -91,13 +92,13 @@ export const ProfileSettings: React.FC = () => {
               <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-amber-400 shadow-md" />
             ) : (
               <div className="w-16 h-16 rounded-full bg-sky-700 text-white font-extrabold flex items-center justify-center text-2xl border-2 border-amber-400 shadow-md">
-                {user?.full_name?.charAt(0) || 'U'}
+                {fullName?.charAt(0) || user?.full_name?.charAt(0) || 'U'}
               </div>
             )}
           </div>
 
           <div>
-            <h2 className="text-lg font-bold">{user?.full_name}</h2>
+            <h2 className="text-lg font-bold">{fullName || user?.full_name}</h2>
             <p className="text-xs text-sky-200">
               @{user?.username} &bull; {user?.department_name} ({user?.role?.toUpperCase()})
             </p>
@@ -116,7 +117,7 @@ export const ProfileSettings: React.FC = () => {
           <CardContent className="p-4">
             {profileSuccess && (
               <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Profile details updated successfully!
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Profile details updated and saved permanently!
               </div>
             )}
 

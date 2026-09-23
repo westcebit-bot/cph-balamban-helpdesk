@@ -17,6 +17,9 @@ interface AuthContextType {
   role: UserRole;
   usersList: UserProfile[];
   switchUser: (userId: string) => void;
+  updateUserProfile: (userId: string, data: Partial<UserProfile>) => void;
+  deleteUser: (userId: string) => void;
+  toggleUserStatus: (userId: string) => void;
   loginWithUsername: (username: string, password?: string) => Promise<{ success: boolean; message?: string }>;
   registerAccount: (payload: RegisterPayload) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
@@ -26,34 +29,39 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Load users from localStorage or initialize with INITIAL_USERS
   const [usersList, setUsersList] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('cph_helpdesk_users');
-    let parsedList: UserProfile[] = saved ? JSON.parse(saved) : [];
-
-    // Always guarantee INITIAL_USERS (admin, mark.tan, sarah.lim, maria.santos, juan.delacruz) exist!
-    const mergedList = [...INITIAL_USERS];
-    
-    parsedList.forEach((u) => {
-      if (u && u.username && !mergedList.some((existing) => existing.id === u.id || existing.username.toLowerCase() === u.username.toLowerCase())) {
-        mergedList.push(u);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error('Error parsing stored users:', e);
       }
-    });
-
-    return mergedList;
+    }
+    return INITIAL_USERS;
   });
 
   const [user, setUser] = useState<UserProfile | null>(() => {
     const savedUserId = localStorage.getItem('cph_helpdesk_current_user_id');
-    const found = usersList.find((u) => u.id === savedUserId);
-    return found || null;
+    if (savedUserId) {
+      const found = usersList.find((u) => u.id === savedUserId);
+      if (found) return found;
+    }
+    return null;
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
+  // Sync usersList to localStorage whenever usersList changes
   useEffect(() => {
     localStorage.setItem('cph_helpdesk_users', JSON.stringify(usersList));
   }, [usersList]);
 
+  // Sync current user ID to localStorage whenever current user changes
   useEffect(() => {
     if (user) {
       localStorage.setItem('cph_helpdesk_current_user_id', user.id);
@@ -69,36 +77,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Update profile details and persist immediately
+  const updateUserProfile = (userId: string, data: Partial<UserProfile>) => {
+    setUsersList((prev) => {
+      const updated = prev.map((u) => {
+        if (u.id === userId) {
+          return { ...u, ...data };
+        }
+        return u;
+      });
+      localStorage.setItem('cph_helpdesk_users', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Update active user state if updating current logged-in user
+    if (user && user.id === userId) {
+      setUser((prev) => (prev ? { ...prev, ...data } : null));
+    }
+  };
+
+  // Permanently delete user account
+  const deleteUser = (userId: string) => {
+    setUsersList((prev) => {
+      const updated = prev.filter((u) => u.id !== userId);
+      localStorage.setItem('cph_helpdesk_users', JSON.stringify(updated));
+      return updated;
+    });
+
+    // If active user was deleted, log out
+    if (user && user.id === userId) {
+      setUser(null);
+    }
+  };
+
+  // Toggle active/inactive status
+  const toggleUserStatus = (userId: string) => {
+    setUsersList((prev) => {
+      const updated = prev.map((u) => {
+        if (u.id === userId) {
+          return { ...u, is_active: !u.is_active };
+        }
+        return u;
+      });
+      localStorage.setItem('cph_helpdesk_users', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (user && user.id === userId) {
+      setUser((prev) => (prev ? { ...prev, is_active: !prev.is_active } : null));
+    }
+  };
+
   const loginWithUsername = async (usernameInput: string, _password?: string): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     try {
       const q = usernameInput.trim().toLowerCase();
       
-      // Search in usersList or fallback to INITIAL_USERS
-      let found = usersList.find((u) => {
+      const found = usersList.find((u) => {
         const uName = (u.username || '').toLowerCase();
         const uEmail = (u.email || '').toLowerCase();
         return uName === q || uEmail === q;
       });
 
-      if (!found) {
-        found = INITIAL_USERS.find((u) => {
-          const uName = (u.username || '').toLowerCase();
-          const uEmail = (u.email || '').toLowerCase();
-          return uName === q || uEmail === q;
-        });
-      }
-
-      // If user typed 'admin' or any match
       if (found) {
         setUser(found);
         setIsLoading(false);
         return { success: true };
       }
 
+      // Admin fallback if list was empty
       if (q === 'admin') {
         const adminFallback = INITIAL_USERS[0];
         setUser(adminFallback);
+        setUsersList((prev) => (prev.some((u) => u.id === adminFallback.id) ? prev : [adminFallback, ...prev]));
         setIsLoading(false);
         return { success: true };
       }
@@ -163,6 +214,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: user?.role || 'employee',
         usersList,
         switchUser,
+        updateUserProfile,
+        deleteUser,
+        toggleUserStatus,
         loginWithUsername,
         registerAccount,
         logout,
