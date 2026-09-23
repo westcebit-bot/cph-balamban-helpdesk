@@ -17,11 +17,13 @@ import { ReportsModule } from './components/reports/ReportsModule';
 import { AuditLogsList } from './components/audit/AuditLogsList';
 import { SystemSettings } from './components/settings/SystemSettings';
 import { Modal } from './components/ui/Modal';
+import { LoginModal } from './components/auth/LoginModal';
 
 const AppContent: React.FC = () => {
   const { role } = useAuth();
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
 
   const renderTabContent = () => {
     switch (currentTab) {
@@ -63,14 +65,17 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
+    <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 w-full">
       <HeaderBrand />
-      <Navbar onOpenNewTicket={() => setIsSubmitModalOpen(true)} />
+      <Navbar
+        onOpenNewTicket={() => setIsSubmitModalOpen(true)}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+      />
 
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex w-full">
         <Sidebar currentTab={currentTab} onSelectTab={setCurrentTab} />
 
-        <main className="flex-1 p-6 overflow-x-hidden min-h-[calc(100vh-8rem)]">
+        <main className="flex-1 p-4 md:p-6 overflow-x-hidden min-h-[calc(100vh-8rem)] w-full">
           {renderTabContent()}
         </main>
       </div>
@@ -94,6 +99,12 @@ const AppContent: React.FC = () => {
           />
         </Modal>
       )}
+
+      {/* Login Portal & Credentials Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
     </div>
   );
 };

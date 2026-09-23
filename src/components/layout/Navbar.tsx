@@ -10,12 +10,17 @@ import {
   Building2, 
   UserCheck, 
   CheckCheck, 
-  Check 
+  Check,
+  LogIn
 } from 'lucide-react';
-import { Badge } from '../ui/Badge';
 import { formatDate } from '../../lib/utils';
 
-export const Navbar: React.FC<{ onOpenNewTicket: () => void }> = ({ onOpenNewTicket }) => {
+interface NavbarProps {
+  onOpenNewTicket: () => void;
+  onOpenLoginModal: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModal }) => {
   const { user, role, demoUsers, switchUser, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [showNotifs, setShowNotifs] = useState(false);
@@ -24,19 +29,19 @@ export const Navbar: React.FC<{ onOpenNewTicket: () => void }> = ({ onOpenNewTic
   const getRoleIcon = (r: string) => {
     switch (r) {
       case 'admin':
-        return <Shield className="w-3.5 h-3.5 text-purple-600" />;
+        return <Shield className="w-3.5 h-3.5 text-purple-400" />;
       case 'technician':
-        return <Wrench className="w-3.5 h-3.5 text-amber-600" />;
+        return <Wrench className="w-3.5 h-3.5 text-amber-400" />;
       case 'supervisor':
-        return <Building2 className="w-3.5 h-3.5 text-sky-600" />;
+        return <Building2 className="w-3.5 h-3.5 text-sky-400" />;
       default:
-        return <UserCheck className="w-3.5 h-3.5 text-emerald-600" />;
+        return <UserCheck className="w-3.5 h-3.5 text-emerald-400" />;
     }
   };
 
   return (
-    <nav className="bg-sky-900 text-white shadow-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="bg-sky-950 text-white shadow-md sticky top-0 z-40 w-full border-b border-sky-900">
+      <div className="w-full px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Left Brand */}
           <div className="flex items-center space-x-3">
@@ -50,7 +55,7 @@ export const Navbar: React.FC<{ onOpenNewTicket: () => void }> = ({ onOpenNewTic
             </div>
           </div>
 
-          {/* Quick Submit Action & Role Switcher */}
+          {/* Actions & Login */}
           <div className="flex items-center space-x-3">
             <button
               onClick={onOpenNewTicket}
@@ -59,22 +64,31 @@ export const Navbar: React.FC<{ onOpenNewTicket: () => void }> = ({ onOpenNewTic
               <span>+ New IT Ticket</span>
             </button>
 
-            {/* Role / User Switcher for Evaluation */}
+            {/* Login Modal Button */}
+            <button
+              onClick={onOpenLoginModal}
+              className="bg-sky-900 hover:bg-sky-800 text-amber-300 font-bold px-3 py-1.5 rounded-md text-xs border border-sky-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Login Portal & Credentials</span>
+            </button>
+
+            {/* Quick Role Switcher */}
             <div className="relative">
               <button
                 onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="bg-sky-800 hover:bg-sky-700 text-white px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 border border-sky-700 transition-all cursor-pointer"
-                title="Click to evaluate different user roles"
+                className="bg-sky-900 hover:bg-sky-800 text-white px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 border border-sky-800 transition-all cursor-pointer"
+                title="Click to switch role"
               >
                 {getRoleIcon(role)}
-                <span className="capitalize hidden md:inline">{user?.full_name} ({role})</span>
-                <span className="text-[10px] bg-sky-950/60 text-sky-200 px-1.5 py-0.5 rounded uppercase">Role Switch</span>
+                <span className="capitalize hidden md:inline font-bold">{user?.full_name}</span>
+                <span className="text-[10px] bg-sky-900 text-sky-200 px-1.5 py-0.5 rounded uppercase font-mono">{role}</span>
               </button>
 
               {showRoleMenu && (
                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl py-2 text-slate-800 border border-slate-200 z-50 animate-in fade-in zoom-in-95">
-                  <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
-                    <p className="text-[11px] font-bold text-slate-500 uppercase">Select Role for Demo Evaluation</p>
+                  <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <p className="text-[11px] font-bold text-slate-500 uppercase">Quick Role Switch</p>
                   </div>
                   <div className="max-h-60 overflow-y-auto py-1">
                     {demoUsers.map((u) => (
@@ -89,7 +103,6 @@ export const Navbar: React.FC<{ onOpenNewTicket: () => void }> = ({ onOpenNewTic
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          {getRoleIcon(u.role)}
                           <div>
                             <p className="font-semibold leading-tight">{u.full_name}</p>
                             <p className="text-[10px] text-slate-500 capitalize">{u.role} &bull; {u.department_name}</p>

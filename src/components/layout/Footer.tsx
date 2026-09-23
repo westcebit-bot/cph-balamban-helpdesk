@@ -3,8 +3,8 @@ import { Shield, Building, HeartHandshake } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs no-print">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+    <footer className="w-full bg-slate-900 text-slate-400 py-4 border-t border-slate-800 text-xs no-print">
+      <div className="w-full px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
           <div className="w-6 h-6 rounded bg-sky-800 flex items-center justify-center text-white font-bold text-[10px]">
             CPH

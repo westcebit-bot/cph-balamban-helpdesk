@@ -173,25 +173,32 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS) POLICIES ON ALL TABLES
+ALTER TABLE public.departments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_subcategories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.it_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_attachments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.it_assets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_status_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
--- RLS: Profiles (Users can read all profiles for lookup; only user or admin can update)
+-- Public read policies for reference data
+CREATE POLICY "Allow public read departments" ON public.departments FOR SELECT USING (true);
+CREATE POLICY "Allow public read categories" ON public.ticket_categories FOR SELECT USING (true);
+CREATE POLICY "Allow public read subcategories" ON public.ticket_subcategories FOR SELECT USING (true);
+
+-- RLS: Profiles
 CREATE POLICY "Allow authenticated read profiles" ON public.profiles FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow user or admin update profile" ON public.profiles FOR UPDATE USING (auth.uid() = id OR EXISTS (
     SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
 ));
 
 -- RLS: Tickets
--- Requesters can see their own tickets
--- Dept Heads can see their department's tickets
--- IT Techs and Admins can see ALL tickets
 CREATE POLICY "Tickets Select Policy" ON public.tickets FOR SELECT USING (
     auth.uid() = requester_id OR
     assigned_technician_id = auth.uid() OR
@@ -208,6 +215,12 @@ CREATE POLICY "Tickets Update Policy" ON public.tickets FOR UPDATE USING (
     assigned_technician_id = auth.uid() OR
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'technician')) OR
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'supervisor' AND department_id = public.tickets.department_id)
+);
+
+-- RLS: IT Assets
+CREATE POLICY "Assets Select Policy" ON public.it_assets FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Assets Modify Policy" ON public.it_assets FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'technician'))
 );
 
 -- RLS: Notifications
