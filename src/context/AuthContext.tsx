@@ -16,6 +16,7 @@ interface AuthContextType {
   user: UserProfile | null;
   role: UserRole;
   usersList: UserProfile[];
+  switchUser: (userId: string) => void;
   loginWithUsername: (username: string, password?: string) => Promise<{ success: boolean; message?: string }>;
   registerAccount: (payload: RegisterPayload) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
@@ -49,6 +50,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('cph_helpdesk_current_user_id');
     }
   }, [user]);
+
+  const switchUser = (userId: string) => {
+    const target = usersList.find((u) => u.id === userId);
+    if (target) {
+      setUser(target);
+    }
+  };
 
   const loginWithUsername = async (usernameInput: string, _password?: string): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
@@ -121,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         role: user?.role || 'employee',
         usersList,
+        switchUser,
         loginWithUsername,
         registerAccount,
         logout,

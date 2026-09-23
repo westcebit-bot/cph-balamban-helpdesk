@@ -9,8 +9,8 @@ import {
   FileText, 
   ShieldAlert, 
   Settings, 
-  FolderKanban, 
-  UserCheck 
+  Users,
+  User
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -59,10 +59,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
       roles: ['admin', 'technician', 'supervisor'],
     },
     {
+      id: 'user-management',
+      label: 'User Management',
+      icon: Users,
+      roles: ['admin'],
+    },
+    {
       id: 'audit',
       label: 'System Audit Logs',
       icon: ShieldAlert,
       roles: ['admin'],
+    },
+    {
+      id: 'profile-settings',
+      label: 'My Profile & Security',
+      icon: User,
+      roles: ['admin', 'technician', 'supervisor', 'employee'],
     },
     {
       id: 'settings',
@@ -80,9 +92,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         {/* User Card */}
         <div className="bg-slate-800/80 p-3 rounded-lg border border-slate-700/60 mb-6">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-full bg-sky-700 text-white flex items-center justify-center font-bold text-sm shadow-xs border border-sky-400/40">
-              {user?.full_name?.charAt(0) || 'U'}
-            </div>
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="Avatar" className="w-9 h-9 rounded-full object-cover border border-sky-400/40" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-sky-700 text-white flex items-center justify-center font-bold text-sm shadow-xs border border-sky-400/40">
+                {user?.full_name?.charAt(0) || 'U'}
+              </div>
+            )}
             <div className="overflow-hidden">
               <p className="font-semibold text-white text-xs truncate">{user?.full_name}</p>
               <p className="text-[10px] text-sky-400 capitalize font-medium">{user?.role} &bull; {user?.department_name}</p>

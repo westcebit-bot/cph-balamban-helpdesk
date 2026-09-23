@@ -16,14 +16,22 @@ import { AssetList } from './components/assets/AssetList';
 import { ReportsModule } from './components/reports/ReportsModule';
 import { AuditLogsList } from './components/audit/AuditLogsList';
 import { SystemSettings } from './components/settings/SystemSettings';
+import { UserManagement } from './components/settings/UserManagement';
+import { ProfileSettings } from './components/settings/ProfileSettings';
+import { LoginPage } from './components/auth/LoginPage';
 import { Modal } from './components/ui/Modal';
 import { LoginModal } from './components/auth/LoginModal';
 
 const AppContent: React.FC = () => {
-  const { role } = useAuth();
+  const { user, role } = useAuth();
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+
+  // Unauthenticated Full-Page Login Screen
+  if (!user) {
+    return <LoginPage />;
+  }
 
   const renderTabContent = () => {
     switch (currentTab) {
@@ -53,8 +61,14 @@ const AppContent: React.FC = () => {
       case 'reports':
         return <ReportsModule />;
 
+      case 'user-management':
+        return <UserManagement />;
+
       case 'audit':
         return <AuditLogsList />;
+
+      case 'profile-settings':
+        return <ProfileSettings />;
 
       case 'settings':
         return <SystemSettings />;
