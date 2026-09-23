@@ -3,14 +3,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { 
   Bell, 
-  User, 
   LogOut, 
   Shield, 
   Wrench, 
   Building2, 
   UserCheck, 
-  CheckCheck, 
-  Check,
+  CheckCheck,
+  User as UserIcon,
   LogIn
 } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
@@ -21,21 +20,20 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModal }) => {
-  const { user, role, demoUsers, switchUser, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [showNotifs, setShowNotifs] = useState(false);
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  const getRoleIcon = (r: string) => {
+  const getRoleBadge = (r: string) => {
     switch (r) {
       case 'admin':
-        return <Shield className="w-3.5 h-3.5 text-purple-400" />;
+        return <span className="bg-purple-900 text-purple-200 border border-purple-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">System Admin</span>;
       case 'technician':
-        return <Wrench className="w-3.5 h-3.5 text-amber-400" />;
+        return <span className="bg-amber-900 text-amber-200 border border-amber-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">IT Technician</span>;
       case 'supervisor':
-        return <Building2 className="w-3.5 h-3.5 text-sky-400" />;
+        return <span className="bg-sky-900 text-sky-200 border border-sky-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Supervisor</span>;
       default:
-        return <UserCheck className="w-3.5 h-3.5 text-emerald-400" />;
+        return <span className="bg-emerald-900 text-emerald-200 border border-emerald-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Employee</span>;
     }
   };
 
@@ -55,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModa
             </div>
           </div>
 
-          {/* Actions & Login */}
+          {/* Right Actions */}
           <div className="flex items-center space-x-3">
             <button
               onClick={onOpenNewTicket}
@@ -64,56 +62,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModa
               <span>+ New IT Ticket</span>
             </button>
 
-            {/* Login Modal Button */}
+            {/* Login / Auth Modal */}
             <button
               onClick={onOpenLoginModal}
               className="bg-sky-900 hover:bg-sky-800 text-amber-300 font-bold px-3 py-1.5 rounded-md text-xs border border-sky-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Login Portal & Credentials</span>
+              <span>Login Portal</span>
             </button>
 
-            {/* Quick Role Switcher */}
-            <div className="relative">
-              <button
-                onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="bg-sky-900 hover:bg-sky-800 text-white px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 border border-sky-800 transition-all cursor-pointer"
-                title="Click to switch role"
-              >
-                {getRoleIcon(role)}
-                <span className="capitalize hidden md:inline font-bold">{user?.full_name}</span>
-                <span className="text-[10px] bg-sky-900 text-sky-200 px-1.5 py-0.5 rounded uppercase font-mono">{role}</span>
-              </button>
-
-              {showRoleMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl py-2 text-slate-800 border border-slate-200 z-50 animate-in fade-in zoom-in-95">
-                  <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <p className="text-[11px] font-bold text-slate-500 uppercase">Quick Role Switch</p>
-                  </div>
-                  <div className="max-h-60 overflow-y-auto py-1">
-                    {demoUsers.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => {
-                          switchUser(u.id);
-                          setShowRoleMenu(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-sky-50 transition-colors ${
-                          user?.id === u.id ? 'bg-sky-100 font-bold text-sky-900' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <p className="font-semibold leading-tight">{u.full_name}</p>
-                            <p className="text-[10px] text-slate-500 capitalize">{u.role} &bull; {u.department_name}</p>
-                          </div>
-                        </div>
-                        {user?.id === u.id && <Check className="w-4 h-4 text-sky-600" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* Logged in User Profile Info (No Demo Switcher) */}
+            <div className="hidden sm:flex items-center space-x-2 bg-sky-900/80 px-3 py-1 rounded-md border border-sky-800">
+              <div className="w-6 h-6 rounded-full bg-sky-700 text-white flex items-center justify-center font-bold text-xs border border-sky-500">
+                {user?.full_name?.charAt(0) || 'A'}
+              </div>
+              <div className="text-left">
+                <span className="text-xs font-bold text-white block leading-none">{user?.full_name}</span>
+                <span className="text-[10px] text-sky-300 font-medium block mt-0.5">{user?.department_name}</span>
+              </div>
+              {getRoleBadge(role)}
             </div>
 
             {/* Notifications Menu */}
@@ -172,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModa
             <button
               onClick={logout}
               className="p-2 text-sky-200 hover:text-white hover:bg-sky-800 rounded-lg transition-colors cursor-pointer"
-              title="Logout / Reset"
+              title="Logout / Sign Out"
             >
               <LogOut className="w-5 h-5" />
             </button>
