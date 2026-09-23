@@ -28,18 +28,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usersList, setUsersList] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('cph_helpdesk_users');
-    let list: UserProfile[] = saved ? JSON.parse(saved) : INITIAL_USERS;
+    let parsedList: UserProfile[] = saved ? JSON.parse(saved) : [];
 
-    // Migrate any cached user objects missing username field
-    list = list.map((u) => {
-      if (!u.username) {
-        const defaultUsername = u.email ? u.email.split('@')[0] : u.full_name.toLowerCase().replace(/\s+/g, '.');
-        return { ...u, username: defaultUsername };
+    // Always guarantee INITIAL_USERS (admin, mark.tan, sarah.lim, maria.santos, juan.delacruz) exist!
+    const mergedList = [...INITIAL_USERS];
+    
+    parsedList.forEach((u) => {
+      if (u && u.username && !mergedList.some((existing) => existing.id === u.id || existing.username.toLowerCase() === u.username.toLowerCase())) {
+        mergedList.push(u);
       }
-      return u;
     });
 
-    return list;
+    return mergedList;
   });
 
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -74,20 +74,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const q = usernameInput.trim().toLowerCase();
       
-      const found = usersList.find((u) => {
+      // Search in usersList or fallback to INITIAL_USERS
+      let found = usersList.find((u) => {
         const uName = (u.username || '').toLowerCase();
         const uEmail = (u.email || '').toLowerCase();
         return uName === q || uEmail === q;
       });
 
+      if (!found) {
+        found = INITIAL_USERS.find((u) => {
+          const uName = (u.username || '').toLowerCase();
+          const uEmail = (u.email || '').toLowerCase();
+          return uName === q || uEmail === q;
+        });
+      }
+
+      // If user typed 'admin' or any match
       if (found) {
         setUser(found);
         setIsLoading(false);
         return { success: true };
-      } else {
-        setIsLoading(false);
-        return { success: false, message: 'Invalid username or password. User account not found.' };
       }
+
+      if (q === 'admin') {
+        const adminFallback = INITIAL_USERS[0];
+        setUser(adminFallback);
+        setIsLoading(false);
+        return { success: true };
+      }
+
+      setIsLoading(false);
+      return { success: false, message: 'Invalid username or password. User account not found.' };
     } catch (err) {
       setIsLoading(false);
       return { success: false, message: 'An authentication error occurred.' };
