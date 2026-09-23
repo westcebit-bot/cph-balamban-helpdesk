@@ -32,10 +32,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load users from localStorage or initialize with INITIAL_USERS
   const [usersList, setUsersList] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('cph_helpdesk_users');
-    if (saved) {
+    if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       } catch (e) {
@@ -177,15 +177,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (found) {
         setUser(found);
-        setIsLoading(false);
-        return { success: true };
-      }
-
-      // Admin fallback if list was empty
-      if (q === 'admin') {
-        const adminFallback = INITIAL_USERS[0];
-        setUser(adminFallback);
-        setUsersList((prev) => (prev.some((u) => u.id === adminFallback.id) ? prev : [adminFallback, ...prev]));
         setIsLoading(false);
         return { success: true };
       }
