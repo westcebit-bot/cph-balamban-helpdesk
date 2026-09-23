@@ -181,6 +181,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       }
 
+      // Fallback check in INITIAL_USERS (e.g. superadmin, npasco)
+      const initialMatch = INITIAL_USERS.find((u) => {
+        const uName = (u.username || '').toLowerCase();
+        const uEmail = (u.email || '').toLowerCase();
+        return uName === q || uEmail === q;
+      });
+
+      if (initialMatch) {
+        setUser(initialMatch);
+        setUsersList((prev) => {
+          const exists = prev.some((u) => u.id === initialMatch.id || u.username.toLowerCase() === initialMatch.username.toLowerCase());
+          if (!exists) {
+            const updated = [initialMatch, ...prev];
+            localStorage.setItem('cph_helpdesk_users', JSON.stringify(updated));
+            return updated;
+          }
+          return prev;
+        });
+        setIsLoading(false);
+        return { success: true };
+      }
+
       setIsLoading(false);
       return { success: false, message: 'Invalid username or password. User account not found.' };
     } catch (err) {

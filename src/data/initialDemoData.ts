@@ -23,6 +23,32 @@ export const INITIAL_DEPARTMENTS: Department[] = [
 
 export const INITIAL_USERS: UserProfile[] = [
   {
+    id: 'usr-superadmin',
+    username: 'superadmin',
+    email: 'superadmin@cphbalamban.gov.ph',
+    full_name: 'Nigel',
+    employee_id: 'CPH-EMP-000',
+    role: 'admin',
+    department_id: 'dept-9',
+    department_name: 'Administration',
+    phone: 'Main Hospital',
+    location: 'Main Hospital',
+    is_active: true,
+  },
+  {
+    id: 'usr-npasco',
+    username: 'npasco',
+    email: 'npasco@cphbalamban.gov.ph',
+    full_name: 'Nigel Pasco',
+    employee_id: 'CPH-EMP-002',
+    role: 'employee',
+    department_id: 'dept-3',
+    department_name: 'PhilHealth & Claims',
+    phone: 'Main Hospital',
+    location: 'Main Hospital',
+    is_active: true,
+  },
+  {
     id: 'usr-admin-1',
     username: 'admin',
     email: 'admin.reyes@cphbalamban.gov.ph',
