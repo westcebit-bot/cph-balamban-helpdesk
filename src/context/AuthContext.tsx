@@ -28,14 +28,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const SYSTEM_BUILD_VERSION = 'v2026_09_23_force_v3';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load users from localStorage or initialize with INITIAL_USERS
+  // Force reset outdated browser cache when a new build/update is deployed
   const [usersList, setUsersList] = useState<UserProfile[]>(() => {
+    const currentVer = localStorage.getItem('cph_helpdesk_build_version');
+    if (currentVer !== SYSTEM_BUILD_VERSION) {
+      localStorage.setItem('cph_helpdesk_build_version', SYSTEM_BUILD_VERSION);
+      localStorage.removeItem('cph_helpdesk_users');
+      localStorage.removeItem('cph_helpdesk_current_user_id');
+      localStorage.removeItem('cph_helpdesk_deleted_users');
+      return INITIAL_USERS;
+    }
+
     const saved = localStorage.getItem('cph_helpdesk_users');
     if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       } catch (e) {
