@@ -65,7 +65,7 @@ export const AdminDashboard: React.FC = () => {
   const techWorkloadData = [
     { name: 'Mark Tan', active: tickets.filter((t) => t.assigned_technician_id === 'usr-tech-1' && t.status !== 'RESOLVED' && t.status !== 'CLOSED').length },
     { name: 'Sarah Lim', active: tickets.filter((t) => t.assigned_technician_id === 'usr-tech-2' && t.status !== 'RESOLVED' && t.status !== 'CLOSED').length },
-    { name: 'Engr. Antonio Reyes', active: tickets.filter((t) => t.assigned_technician_id === 'usr-admin-1' && t.status !== 'RESOLVED' && t.status !== 'CLOSED').length },
+    { name: 'Nigel (Admin)', active: tickets.filter((t) => t.assigned_technician_id === 'usr-superadmin' && t.status !== 'RESOLVED' && t.status !== 'CLOSED').length },
   ];
 
   return (

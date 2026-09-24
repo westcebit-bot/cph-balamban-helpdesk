@@ -28,7 +28,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SYSTEM_BUILD_VERSION = 'v2026_09_23_force_v3';
+const SYSTEM_BUILD_VERSION = 'v2026_09_24_v6_delete_enforced';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Force reset outdated browser cache when a new build/update is deployed
@@ -201,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithUsername = async (usernameInput: string, _password?: string): Promise<{ success: boolean; message?: string }> => {
+  const loginWithUsername = async (usernameInput: string, passwordInput?: string): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     try {
       const q = usernameInput.trim().toLowerCase();
@@ -215,13 +215,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const found = usersList.find((u) => {
         const uName = (u.username || '').toLowerCase();
         const uEmail = (u.email || '').toLowerCase();
-        return (uName === q || uEmail === q) && !deletedUserIds.includes(u.id);
+        return (uName === q || uEmail === q) && !deletedUserIds.includes(u.id) && !deletedUserIds.includes(uName);
       });
 
       if (found) {
         if (!found.is_active) {
           setIsLoading(false);
           return { success: false, message: 'This account is deactivated. Please contact your IT administrator.' };
+        }
+        if (found.password && passwordInput && found.password !== passwordInput) {
+          setIsLoading(false);
+          return { success: false, message: 'Invalid password. Please check your credentials.' };
         }
         setUser(found);
         setIsLoading(false);
@@ -239,6 +243,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!initialMatch.is_active) {
           setIsLoading(false);
           return { success: false, message: 'This account is deactivated. Please contact your IT administrator.' };
+        }
+        if (initialMatch.password && passwordInput && initialMatch.password !== passwordInput) {
+          setIsLoading(false);
+          return { success: false, message: 'Invalid password. Please check your credentials.' };
         }
         setUser(initialMatch);
         setUsersList((prev) => {
@@ -278,6 +286,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newUser: UserProfile = {
         id: `usr-${Date.now()}`,
         username: payload.username.trim(),
+        password: payload.password,
         email: `${payload.username.trim()}@cphbalamban.gov.ph`,
         full_name: payload.full_name.trim(),
         employee_id: payload.employee_id?.trim(),

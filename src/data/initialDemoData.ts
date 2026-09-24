@@ -49,19 +49,6 @@ export const INITIAL_USERS: UserProfile[] = [
     is_active: true,
   },
   {
-    id: 'usr-admin-1',
-    username: 'admin',
-    email: 'admin.reyes@cphbalamban.gov.ph',
-    full_name: 'Engr. Antonio Reyes',
-    employee_id: 'CPH-EMP-001',
-    role: 'admin',
-    department_id: 'dept-10',
-    department_name: 'IT Department',
-    phone: 'Loc 101 / +63 917 111 2233',
-    location: 'Main Hospital Building - IT Office 2F',
-    is_active: true,
-  },
-  {
     id: 'usr-tech-1',
     username: 'mark.tan',
     email: 'mark.tan@cphbalamban.gov.ph',
@@ -250,8 +237,8 @@ export const INITIAL_TICKETS: Ticket[] = [];
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [
   {
     id: 'log-1',
-    user_id: 'usr-admin-1',
-    user_name: 'Engr. Antonio Reyes',
+    user_id: 'usr-superadmin',
+    user_name: 'Nigel',
     action: 'System Initialization',
     target_table: 'system_settings',
     details: 'Initialized CPH-Balamban IT Helpdesk system baseline.',

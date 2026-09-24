@@ -196,7 +196,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Send notifications to Admin and IT Staff
     if (payload.priority === 'Critical') {
       addNotification({
-        user_id: 'usr-admin-1',
+        user_id: 'usr-superadmin',
         title: '⚠️ CRITICAL TICKET SUBMITTED',
         message: `${ticketNumber}: ${payload.title} in ${dept?.name}`,
         link: newTicket.id,
@@ -256,7 +256,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const techUsers = [
       { id: 'usr-tech-1', name: 'Mark Tan' },
       { id: 'usr-tech-2', name: 'Sarah Lim' },
-      { id: 'usr-admin-1', name: 'Engr. Antonio Reyes' },
+      { id: 'usr-superadmin', name: 'Nigel (Admin)' },
     ];
     const tech = techUsers.find((u) => u.id === technicianId);
 
