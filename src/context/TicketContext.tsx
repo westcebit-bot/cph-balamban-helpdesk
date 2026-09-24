@@ -20,6 +20,7 @@ import {
 } from '../data/initialDemoData';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface NewTicketPayload {
   title: string;
@@ -174,6 +175,78 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
+  // Supabase Cloud Realtime DB Sync & Hydration
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const client = supabase;
+
+    // Fetch Tickets from Supabase Cloud
+    const fetchCloudTickets = async () => {
+      try {
+        const { data, error } = await client
+          .from('tickets')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          setTickets(data);
+          localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(data));
+        } else if (!error && data && data.length === 0) {
+          // Seed INITIAL_TICKETS to Supabase cloud if table is empty
+          await client.from('tickets').upsert(INITIAL_TICKETS);
+        }
+      } catch (err) {
+        console.warn('[Supabase Sync] Ticket fetch fallback:', err);
+      }
+    };
+
+    // Fetch Comments from Supabase Cloud
+    const fetchCloudComments = async () => {
+      try {
+        const { data, error } = await client.from('ticket_comments').select('*');
+        if (!error && data && data.length > 0) {
+          const grouped: Record<string, TicketComment[]> = {};
+          data.forEach((c: TicketComment) => {
+            if (!grouped[c.ticket_id]) grouped[c.ticket_id] = [];
+            grouped[c.ticket_id].push(c);
+          });
+          setComments(grouped);
+          localStorage.setItem('cph_helpdesk_comments', JSON.stringify(grouped));
+        }
+      } catch (err) {
+        console.warn('[Supabase Sync] Comment fetch fallback:', err);
+      }
+    };
+
+    fetchCloudTickets();
+    fetchCloudComments();
+
+    // Subscribe to Realtime PostgreSQL changes for instant sync across browsers
+    const channel = client
+      .channel('public-tickets-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tickets' },
+        () => {
+          fetchCloudTickets();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ticket_comments' },
+        () => {
+          fetchCloudComments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (client && channel) {
+        client.removeChannel(channel);
+      }
+    };
+  }, []);
+
   const addAuditLog = (action: string, targetTable: string, targetId?: string, details?: any) => {
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
@@ -225,6 +298,13 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTickets((prev) => [newTicket, ...prev]);
     addAuditLog('Ticket Created', 'tickets', newTicket.id, { ticket_number: ticketNumber, priority: payload.priority });
 
+    // Sync to Supabase Cloud if configured
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('tickets').insert([newTicket]).then(({ error }) => {
+        if (error) console.warn('[Supabase Insert Ticket Error]:', error);
+      });
+    }
+
     // Send notifications to Admin and IT Staff
     if (payload.priority === 'Critical') {
       addNotification({
@@ -272,6 +352,24 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     addAuditLog(`Status Changed (${oldStatus} ➔ ${newStatus})`, 'tickets', ticketId, { reasonOrSummary });
 
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('tickets')
+        .update({
+          status: newStatus,
+          updated_at: now,
+          first_responded_at: target.first_responded_at || (newStatus !== 'NEW' ? now : undefined),
+          resolved_at: newStatus === 'RESOLVED' ? now : target.resolved_at,
+          closed_at: newStatus === 'CLOSED' ? now : target.closed_at,
+          on_hold_reason: newStatus === 'ON HOLD' ? reasonOrSummary : target.on_hold_reason,
+          resolution_summary: newStatus === 'RESOLVED' ? reasonOrSummary : target.resolution_summary,
+        })
+        .eq('id', ticketId)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase Status Update Error]:', error);
+        });
+    }
+
     // Notify requester
     addNotification({
       user_id: target.requester_id,
@@ -311,6 +409,21 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     addAuditLog('Ticket Assigned', 'tickets', ticketId, { technician: tech?.name });
 
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('tickets')
+        .update({
+          assigned_technician_id: technicianId,
+          assigned_technician_name: tech?.name || 'IT Tech',
+          status: target.status === 'NEW' ? 'ASSIGNED' : target.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', ticketId)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase Assign Ticket Error]:', error);
+        });
+    }
+
     addNotification({
       user_id: technicianId,
       title: 'Ticket Assigned to You',
@@ -339,6 +452,20 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
     );
 
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('tickets')
+        .update({
+          status: 'IN PROGRESS',
+          reopened_count: (target.reopened_count || 0) + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', ticketId)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase Reopen Ticket Error]:', error);
+        });
+    }
+
     addComment(ticketId, `[TICKET REOPENED] Reason: ${reason}`, false);
     addAuditLog('Ticket Reopened', 'tickets', ticketId, { reason });
 
@@ -361,6 +488,12 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...prev,
       [ticketId]: [...(prev[ticketId] || []), newComment],
     }));
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('ticket_comments').insert([newComment]).then(({ error }) => {
+        if (error) console.warn('[Supabase Comment Insert Error]:', error);
+      });
+    }
 
     return true;
   };
