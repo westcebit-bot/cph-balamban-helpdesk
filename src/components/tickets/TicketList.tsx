@@ -50,13 +50,22 @@ export const TicketList: React.FC<TicketListProps> = ({ initialFilter, titleOver
   // Filtering logic
   const filteredTickets = tickets.filter((t) => {
     // Role-based visibility enforcement
-    if (
-      role === 'employee' &&
-      t.requester_id !== user?.id &&
-      t.requester_name?.toLowerCase() !== user?.full_name?.toLowerCase() &&
-      t.requester_email?.toLowerCase() !== user?.email?.toLowerCase()
-    ) {
-      return false;
+    if (role === 'employee') {
+      const isIdMatch = Boolean(user?.id && t.requester_id === user.id);
+      const isNameMatch = Boolean(
+        t.requester_name &&
+          user?.full_name &&
+          (t.requester_name.toLowerCase().includes(user.full_name.toLowerCase()) ||
+            user.full_name.toLowerCase().includes(t.requester_name.toLowerCase()))
+      );
+      const isEmailMatch = Boolean(
+        t.requester_email && user?.email && t.requester_email.toLowerCase() === user.email.toLowerCase()
+      );
+      const isDeptMatch = Boolean(t.department_id && user?.department_id && t.department_id === user.department_id);
+
+      if (!isIdMatch && !isNameMatch && !isEmailMatch && !isDeptMatch) {
+        return false;
+      }
     }
     if (role === 'supervisor' && t.department_id !== user?.department_id && t.requester_id !== user?.id) {
       return false;

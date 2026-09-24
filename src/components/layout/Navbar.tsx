@@ -16,7 +16,16 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModal }) => {
   const { user, role, logout } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+
+  const userNotifications = notifications.filter((n) => {
+    if (role === 'admin' || role === 'technician') return true;
+    if (n.user_id && user?.id && n.user_id === user.id) return true;
+    if (!n.user_id) return true;
+    return false;
+  });
+
+  const displayUnreadCount = userNotifications.filter((n) => !n.is_read).length;
   const [showNotifs, setShowNotifs] = useState(false);
 
   const getRoleBadge = (r: string) => {
@@ -93,9 +102,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModa
                 className="relative p-2 text-sky-100 hover:text-white rounded-full hover:bg-sky-800 transition-colors cursor-pointer"
               >
                 <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
+                {displayUnreadCount > 0 && (
                   <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-extrabold h-4 w-4 rounded-full flex items-center justify-center animate-bounce">
-                    {unreadCount}
+                    {displayUnreadCount}
                   </span>
                 )}
               </button>
@@ -104,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModa
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-2xl py-2 text-slate-800 border border-slate-200 z-50 animate-in fade-in">
                   <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                     <h4 className="font-bold text-xs uppercase text-slate-700">Notifications</h4>
-                    {unreadCount > 0 && (
+                    {displayUnreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
                         className="text-[11px] text-sky-700 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
@@ -114,10 +123,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewTicket, onOpenLoginModa
                     )}
                   </div>
                   <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
-                    {notifications.length === 0 ? (
+                    {userNotifications.length === 0 ? (
                       <p className="p-4 text-center text-xs text-slate-500">No notifications</p>
                     ) : (
-                      notifications.map((n) => (
+                      userNotifications.map((n) => (
                         <div
                           key={n.id}
                           onClick={() => markAsRead(n.id)}
