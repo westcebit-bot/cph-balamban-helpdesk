@@ -47,7 +47,7 @@ interface TicketContextType {
   createTicket: (payload: NewTicketPayload) => Promise<Ticket>;
   deleteTicket: (ticketId: string) => Promise<boolean>;
   updateTicketStatus: (ticketId: string, status: TicketStatus, reasonOrSummary?: string) => Promise<boolean>;
-  assignTicket: (ticketId: string, technicianId: string) => Promise<boolean>;
+  assignTicket: (ticketId: string, technicianId: string, technicianName?: string) => Promise<boolean>;
   reopenTicket: (ticketId: string, reason: string) => Promise<boolean>;
   addComment: (ticketId: string, comment: string, isInternal?: boolean) => Promise<boolean>;
   createAsset: (asset: Omit<ITAsset, 'id'>) => Promise<boolean>;
@@ -59,27 +59,27 @@ interface TicketContextType {
 
 const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
-const TICKET_BUILD_VERSION = 'v2.0_UNIFIED_TICKETS_V14';
+const TICKET_BUILD_VERSION = 'v2.0_UNIFIED_TICKETS_V15';
 
 export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
 
-  // Load from local storage or defaults with cache reset for build updates
+  // Load from local storage or defaults with persistent deletion tracking
   const [tickets, setTickets] = useState<Ticket[]>(() => {
-    const currentVer = localStorage.getItem('cph_helpdesk_ticket_build_ver');
-    if (currentVer !== TICKET_BUILD_VERSION) {
-      localStorage.setItem('cph_helpdesk_ticket_build_ver', TICKET_BUILD_VERSION);
-      localStorage.removeItem('cph_helpdesk_tickets');
-      return INITIAL_TICKETS;
-    }
+    localStorage.setItem('cph_helpdesk_ticket_build_ver', TICKET_BUILD_VERSION);
     const saved = localStorage.getItem('cph_helpdesk_tickets');
-    if (saved) {
+    if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (err) {}
     }
+    const hasInitialized = localStorage.getItem('cph_helpdesk_initialized');
+    if (hasInitialized === 'true') {
+      return [];
+    }
+    localStorage.setItem('cph_helpdesk_initialized', 'true');
     return INITIAL_TICKETS;
   });
 
@@ -204,13 +204,17 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .order('created_at', { ascending: false });
 
         if (!error && data) {
-          if (data.length > 0) {
-            setTickets(data);
-            localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(data));
-          } else {
-            // Seed INITIAL_TICKETS to Supabase cloud if table is empty
+          const hasInitialized = localStorage.getItem('cph_helpdesk_initialized');
+          if (data.length === 0 && hasInitialized !== 'true') {
+            // Seed INITIAL_TICKETS to Supabase cloud only on first launch
             await client.from('tickets').upsert(INITIAL_TICKETS);
             setTickets(INITIAL_TICKETS);
+            localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(INITIAL_TICKETS));
+            localStorage.setItem('cph_helpdesk_initialized', 'true');
+          } else {
+            setTickets(data);
+            localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(data));
+            localStorage.setItem('cph_helpdesk_initialized', 'true');
           }
         } else {
           console.warn('[Supabase Sync] Ticket fetch fallback to local:', error?.message);
@@ -421,44 +425,30 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return true;
   };
 
-  const assignTicket = async (ticketId: string, technicianId: string): Promise<boolean> => {
+  const assignTicket = async (ticketId: string, technicianId: string, technicianName?: string): Promise<boolean> => {
     const target = tickets.find((t) => t.id === ticketId);
-    const techUsers = [
-      { id: 'usr-tech-1', name: 'Mark Tan' },
-      { id: 'usr-tech-2', name: 'Sarah Lim' },
-      { id: 'usr-superadmin', name: 'Nigel (Admin)' },
-    ];
-    const tech = techUsers.find((u) => u.id === technicianId);
-
     if (!target) return false;
 
+    const assignedName = technicianName || (user?.id === technicianId ? user.full_name : 'IT Technician');
+
+    const updatedTicketObj: Ticket = {
+      ...target,
+      assigned_technician_id: technicianId,
+      assigned_technician_name: assignedName,
+      status: target.status === 'NEW' ? 'ASSIGNED' : target.status,
+      updated_at: new Date().toISOString(),
+    };
+
     setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          return {
-            ...t,
-            assigned_technician_id: technicianId,
-            assigned_technician_name: tech?.name || 'IT Tech',
-            status: t.status === 'NEW' ? 'ASSIGNED' : t.status,
-            updated_at: new Date().toISOString(),
-          };
-        }
-        return t;
-      })
+      prev.map((t) => (t.id === ticketId ? updatedTicketObj : t))
     );
 
-    addAuditLog('Ticket Assigned', 'tickets', ticketId, { technician: tech?.name });
+    addAuditLog('Ticket Assigned', 'tickets', ticketId, { technician: assignedName });
 
     if (isSupabaseConfigured && supabase) {
       supabase
         .from('tickets')
-        .update({
-          assigned_technician_id: technicianId,
-          assigned_technician_name: tech?.name || 'IT Tech',
-          status: target.status === 'NEW' ? 'ASSIGNED' : target.status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', ticketId)
+        .upsert([updatedTicketObj])
         .then(({ error }) => {
           if (error) console.warn('[Supabase Assign Ticket Error]:', error);
         });
@@ -566,7 +556,12 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const target = tickets.find((t) => t.id === ticketId);
     if (!target) return false;
 
-    setTickets((prev) => prev.filter((t) => t.id !== ticketId));
+    setTickets((prev) => {
+      const updated = prev.filter((t) => t.id !== ticketId);
+      localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(updated));
+      localStorage.setItem('cph_helpdesk_initialized', 'true');
+      return updated;
+    });
     addAuditLog('Ticket Force Deleted', 'tickets', ticketId, { ticket_number: target.ticket_number, title: target.title });
 
     if (isSupabaseConfigured && supabase) {

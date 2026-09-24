@@ -28,9 +28,12 @@ interface TicketDetailsProps {
   onClose: () => void;
 }
 
-export const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onClose }) => {
+export const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket: initialTicket, onClose }) => {
   const { user, role } = useAuth();
-  const { updateTicketStatus, assignTicket, reopenTicket, addComment, getTicketComments, deleteTicket } = useTickets();
+  const { tickets, updateTicketStatus, assignTicket, reopenTicket, addComment, getTicketComments, deleteTicket } = useTickets();
+
+  // Reactive ticket object synced with TicketContext state
+  const ticket = tickets.find((t) => t.id === initialTicket.id) || initialTicket;
 
   const [activeTab, setActiveTab] = useState<'details' | 'timeline'>('details');
   const [newCommentText, setNewCommentText] = useState('');
@@ -61,7 +64,7 @@ export const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onClose })
 
   const handleSelfAssign = async () => {
     if (user?.id) {
-      await assignTicket(ticket.id, user.id);
+      await assignTicket(ticket.id, user.id, user.full_name);
     }
   };
 

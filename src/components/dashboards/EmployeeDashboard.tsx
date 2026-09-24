@@ -17,8 +17,7 @@ export const EmployeeDashboard: React.FC<{ onOpenNewTicket: () => void }> = ({ o
         user?.full_name &&
         (t.requester_name.toLowerCase().includes(user.full_name.toLowerCase()) ||
           user.full_name.toLowerCase().includes(t.requester_name.toLowerCase()))) ||
-      (t.requester_email && user?.email && t.requester_email.toLowerCase() === user.email.toLowerCase()) ||
-      (t.department_id && user?.department_id && t.department_id === user.department_id)
+      (t.requester_email && user?.email && t.requester_email.toLowerCase() === user.email.toLowerCase())
   );
   const activeCount = myTickets.filter((t) => t.status !== 'RESOLVED' && t.status !== 'CLOSED').length;
   const resolvedCount = myTickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length;

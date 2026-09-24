@@ -61,9 +61,8 @@ export const TicketList: React.FC<TicketListProps> = ({ initialFilter, titleOver
       const isEmailMatch = Boolean(
         t.requester_email && user?.email && t.requester_email.toLowerCase() === user.email.toLowerCase()
       );
-      const isDeptMatch = Boolean(t.department_id && user?.department_id && t.department_id === user.department_id);
 
-      if (!isIdMatch && !isNameMatch && !isEmailMatch && !isDeptMatch) {
+      if (!isIdMatch && !isNameMatch && !isEmailMatch) {
         return false;
       }
     }
