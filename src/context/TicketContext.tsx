@@ -104,9 +104,14 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   });
 
-  // Sync to local storage
+  // Sync to local storage & broadcast across tabs
   useEffect(() => {
     localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(tickets));
+    try {
+      const ch = new BroadcastChannel('cph_helpdesk_sync');
+      ch.postMessage({ type: 'TICKET_SYNC', timestamp: Date.now() });
+      ch.close();
+    } catch (e) {}
   }, [tickets]);
 
   useEffect(() => {
@@ -119,10 +124,34 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     localStorage.setItem('cph_helpdesk_comments', JSON.stringify(comments));
+    try {
+      const ch = new BroadcastChannel('cph_helpdesk_sync');
+      ch.postMessage({ type: 'TICKET_SYNC', timestamp: Date.now() });
+      ch.close();
+    } catch (e) {}
   }, [comments]);
 
   // Real-time synchronization across normal browser tabs
   useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('cph_helpdesk_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'TICKET_SYNC') {
+          const savedTickets = localStorage.getItem('cph_helpdesk_tickets');
+          if (savedTickets) {
+            try { setTickets(JSON.parse(savedTickets)); } catch (err) {}
+          }
+          const savedComments = localStorage.getItem('cph_helpdesk_comments');
+          if (savedComments) {
+            try { setComments(JSON.parse(savedComments)); } catch (err) {}
+          }
+        }
+      };
+    } catch (e) {
+      // BroadcastChannel optional fallback
+    }
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'cph_helpdesk_tickets' && e.newValue) {
         try { setTickets(JSON.parse(e.newValue)); } catch (err) {}
@@ -139,7 +168,10 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (channel) channel.close();
+    };
   }, []);
 
   const addAuditLog = (action: string, targetTable: string, targetId?: string, details?: any) => {
