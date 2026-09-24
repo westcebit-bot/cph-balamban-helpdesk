@@ -129,11 +129,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         </nav>
       </div>
 
-      {/* Hospital Footer Info */}
-      <div className="p-4 border-t border-slate-800/80 text-[10px] text-slate-500">
-        <p className="font-bold text-slate-400 uppercase tracking-wider">CPH – Balamban</p>
-        <p className="mt-0.5">Province of Cebu, Philippines</p>
-        <p className="mt-2 text-slate-600">v2.0 &bull; IT Division &bull; RA 10173 Compliant</p>
+      {/* Hospital Footer Info & Version Badge */}
+      <div className="p-3 border-t border-slate-800/80 text-[10px] text-slate-400 bg-slate-950/60">
+        <div className="flex items-center justify-between mb-1">
+          <p className="font-extrabold text-sky-400 uppercase tracking-wider">CPH – Balamban</p>
+          <span className="bg-sky-900 text-sky-200 px-1.5 py-0.5 rounded text-[9px] font-bold border border-sky-700/80">
+            v2.0
+          </span>
+        </div>
+        <p className="text-[10px] text-slate-400">Integrated IT Helpdesk System</p>
+        <p className="mt-1 text-[9px] text-slate-500 font-mono">Build: 2026.09.24 &bull; RA 10173</p>
       </div>
     </aside>
   );

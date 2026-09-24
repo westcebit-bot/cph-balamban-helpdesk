@@ -28,7 +28,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SYSTEM_BUILD_VERSION = 'v2026_09_24_v8_purge_admin_completely';
+const SYSTEM_BUILD_VERSION = 'v2.0_CPH_BALAMBAN_PRODUCTION_FINAL_PURGE';
 
 const isBlockedUser = (u: UserProfile | string): boolean => {
   if (typeof u === 'string') {

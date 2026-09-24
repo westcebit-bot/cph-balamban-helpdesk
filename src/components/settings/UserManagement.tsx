@@ -16,7 +16,20 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const filteredUsers = usersList.filter((u) => {
+  const sanitizedUsersList = usersList.filter((u) => {
+    const uName = (u.username || '').toLowerCase();
+    const fName = (u.full_name || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    return (
+      uName !== 'admin' &&
+      uName !== 'admin123' &&
+      u.id !== 'usr-admin-1' &&
+      !fName.includes('antonio reyes') &&
+      !email.includes('admin.reyes')
+    );
+  });
+
+  const filteredUsers = sanitizedUsersList.filter((u) => {
     if (roleFilter && u.role !== roleFilter) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();

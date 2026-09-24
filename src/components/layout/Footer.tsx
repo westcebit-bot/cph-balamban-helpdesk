@@ -16,6 +16,9 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-6 text-[11px] text-slate-400">
+          <span className="bg-sky-950 text-sky-300 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border border-sky-800 flex items-center gap-1 shadow-2xs">
+            System Version: v2.0 (Build 2026.09.24)
+          </span>
           <span className="flex items-center gap-1.5">
             <Shield className="w-3.5 h-3.5 text-emerald-500" /> RA 10173 Protected
           </span>

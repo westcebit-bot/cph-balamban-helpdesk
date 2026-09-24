@@ -89,7 +89,7 @@ const AppContent: React.FC = () => {
       <div className="flex-1 flex w-full">
         <Sidebar currentTab={currentTab} onSelectTab={setCurrentTab} />
 
-        <main className="flex-1 p-4 md:p-6 overflow-x-hidden min-h-[calc(100vh-8rem)] w-full">
+        <main className="flex-1 p-3 md:p-5 overflow-x-hidden w-full">
           {renderTabContent()}
         </main>
       </div>
