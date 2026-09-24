@@ -244,8 +244,30 @@ export const INITIAL_ASSETS: ITAsset[] = [
   },
 ];
 
-// Clean initial tickets array for fresh hospital production deployment
-export const INITIAL_TICKETS: Ticket[] = [];
+export const INITIAL_TICKETS: Ticket[] = [
+  {
+    id: 'tkt-1',
+    ticket_number: 'CPH-IT-2026-00001',
+    title: 'NO NET',
+    description: 'Desktop Computer - new building network connection error',
+    requester_id: 'usr-npasco',
+    requester_name: 'Nigel Pasco',
+    requester_email: 'npasco@cphbalamban.gov.ph',
+    department_id: 'dept-3',
+    department_name: 'PhilHealth & Claims',
+    contact_number: 'Loc 105',
+    category_id: 'cat-3',
+    category_name: 'Network and Connectivity',
+    subcategory_id: 'sub-12',
+    subcategory_name: 'No Internet',
+    priority: 'Medium',
+    status: 'NEW',
+    device_type: 'Desktop Computer',
+    location: 'PhilHealth Ground Floor',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
 
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [
   {

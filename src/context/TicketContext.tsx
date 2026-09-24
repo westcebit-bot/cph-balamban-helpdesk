@@ -59,14 +59,28 @@ interface TicketContextType {
 
 const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
+const TICKET_BUILD_VERSION = 'v2.0_UNIFIED_TICKETS_V14';
+
 export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
 
-  // Load from local storage or defaults
+  // Load from local storage or defaults with cache reset for build updates
   const [tickets, setTickets] = useState<Ticket[]>(() => {
+    const currentVer = localStorage.getItem('cph_helpdesk_ticket_build_ver');
+    if (currentVer !== TICKET_BUILD_VERSION) {
+      localStorage.setItem('cph_helpdesk_ticket_build_ver', TICKET_BUILD_VERSION);
+      localStorage.removeItem('cph_helpdesk_tickets');
+      return INITIAL_TICKETS;
+    }
     const saved = localStorage.getItem('cph_helpdesk_tickets');
-    return saved ? JSON.parse(saved) : INITIAL_TICKETS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (err) {}
+    }
+    return INITIAL_TICKETS;
   });
 
   const [categories, setCategories] = useState<TicketCategory[]>(() => {
@@ -189,12 +203,17 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
-          setTickets(data);
-          localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(data));
-        } else if (!error && data && data.length === 0) {
-          // Seed INITIAL_TICKETS to Supabase cloud if table is empty
-          await client.from('tickets').upsert(INITIAL_TICKETS);
+        if (!error && data) {
+          if (data.length > 0) {
+            setTickets(data);
+            localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(data));
+          } else {
+            // Seed INITIAL_TICKETS to Supabase cloud if table is empty
+            await client.from('tickets').upsert(INITIAL_TICKETS);
+            setTickets(INITIAL_TICKETS);
+          }
+        } else {
+          console.warn('[Supabase Sync] Ticket fetch fallback to local:', error?.message);
         }
       } catch (err) {
         console.warn('[Supabase Sync] Ticket fetch fallback:', err);
