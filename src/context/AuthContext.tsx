@@ -28,7 +28,28 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SYSTEM_BUILD_VERSION = 'v2026_09_24_v6_delete_enforced';
+const SYSTEM_BUILD_VERSION = 'v2026_09_24_v8_purge_admin_completely';
+
+const isBlockedUser = (u: UserProfile | string): boolean => {
+  if (typeof u === 'string') {
+    const q = u.trim().toLowerCase();
+    return q === 'admin' || q === 'admin123' || q === 'usr-admin-1' || q === 'admin.reyes@cphbalamban.gov.ph';
+  }
+  const uName = (u.username || '').toLowerCase();
+  const fName = (u.full_name || '').toLowerCase();
+  const email = (u.email || '').toLowerCase();
+  return (
+    uName === 'admin' ||
+    uName === 'admin123' ||
+    u.id === 'usr-admin-1' ||
+    fName.includes('antonio reyes') ||
+    email.includes('admin.reyes')
+  );
+};
+
+const sanitizeUsers = (list: UserProfile[]): UserProfile[] => {
+  return list.filter((u) => !isBlockedUser(u));
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Force reset outdated browser cache when a new build/update is deployed
@@ -39,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('cph_helpdesk_users');
       localStorage.removeItem('cph_helpdesk_current_user_id');
       localStorage.removeItem('cph_helpdesk_deleted_users');
-      return INITIAL_USERS;
+      return sanitizeUsers(INITIAL_USERS);
     }
 
     const saved = localStorage.getItem('cph_helpdesk_users');
@@ -47,19 +68,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return sanitizeUsers(parsed);
         }
       } catch (e) {
         console.error('Error parsing stored users:', e);
       }
     }
-    return INITIAL_USERS;
+    return sanitizeUsers(INITIAL_USERS);
   });
 
   const [user, setUser] = useState<UserProfile | null>(() => {
     const savedUserId = localStorage.getItem('cph_helpdesk_current_user_id');
     if (savedUserId) {
-      const found = usersList.find((u) => u.id === savedUserId);
+      const found = usersList.find((u) => u.id === savedUserId && !isBlockedUser(u));
       if (found) return found;
     }
     return null;
@@ -70,7 +91,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Track deleted user IDs and usernames so deleted accounts can NEVER log in again
   const [deletedUserIds, setDeletedUserIds] = useState<string[]>(() => {
     const saved = localStorage.getItem('cph_helpdesk_deleted_users');
-    return saved ? JSON.parse(saved) : [];
+    const defaultBlocked = ['admin', 'admin123', 'usr-admin-1', 'admin.reyes@cphbalamban.gov.ph'];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return Array.from(new Set([...defaultBlocked, ...parsed]));
+        }
+      } catch (e) {}
+    }
+    return defaultBlocked;
   });
 
   // Sync usersList to localStorage whenever usersList changes
@@ -206,10 +236,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const q = usernameInput.trim().toLowerCase();
 
-      // Check if user or username is in deleted blacklist
-      if (deletedUserIds.includes(q)) {
+      // Check if user or username is in deleted blacklist or blocked list
+      if (isBlockedUser(q) || deletedUserIds.includes(q)) {
         setIsLoading(false);
-        return { success: false, message: 'This user account has been deleted and cannot log in.' };
+        return { success: false, message: 'This account (@admin) has been permanently deleted from the hospital system.' };
       }
       
       const found = usersList.find((u) => {
