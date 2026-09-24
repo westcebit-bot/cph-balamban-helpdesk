@@ -17,7 +17,8 @@ import {
   Clock, 
   Building, 
   Tag, 
-  User 
+  User,
+  Trash2
 } from 'lucide-react';
 
 interface TicketListProps {
@@ -32,7 +33,7 @@ interface TicketListProps {
 
 export const TicketList: React.FC<TicketListProps> = ({ initialFilter, titleOverride }) => {
   const { user, role } = useAuth();
-  const { tickets, departments, categories } = useTickets();
+  const { tickets, departments, categories, deleteTicket } = useTickets();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter?.status || '');
@@ -248,14 +249,31 @@ export const TicketList: React.FC<TicketListProps> = ({ initialFilter, titleOver
                         {t.assigned_technician_name || <span className="text-slate-400 italic">Unassigned</span>}
                       </td>
                       <td className="p-3 text-right whitespace-nowrap">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setSelectedTicket(t)}
-                          className="text-sky-700 hover:text-sky-900 cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1" /> View
-                        </Button>
+                        <div className="flex items-center justify-end space-x-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedTicket(t)}
+                            className="text-sky-700 hover:text-sky-900 cursor-pointer text-xs"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1" /> View
+                          </Button>
+                          {(role === 'admin' || user?.id === 'usr-superadmin') && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to permanently delete ticket ${t.ticket_number}?`)) {
+                                  deleteTicket(t.id);
+                                }
+                              }}
+                              className="text-rose-600 hover:text-rose-900 hover:bg-rose-50 cursor-pointer text-xs font-semibold"
+                              title="Delete Ticket"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1 text-rose-500" /> Delete
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -295,9 +313,25 @@ export const TicketList: React.FC<TicketListProps> = ({ initialFilter, titleOver
 
                   <div className="flex items-center justify-between pt-2">
                     <SLABadge ticket={t} />
-                    <Button size="sm" variant="primary" onClick={() => setSelectedTicket(t)}>
-                      Details
-                    </Button>
+                    <div className="flex items-center space-x-1">
+                      <Button size="sm" variant="primary" onClick={() => setSelectedTicket(t)}>
+                        Details
+                      </Button>
+                      {(role === 'admin' || user?.id === 'usr-superadmin') && (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to permanently delete ticket ${t.ticket_number}?`)) {
+                              deleteTicket(t.id);
+                            }
+                          }}
+                          title="Delete Ticket"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

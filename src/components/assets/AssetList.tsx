@@ -8,7 +8,7 @@ import { Modal } from '../ui/Modal';
 import { Search, Plus, HardDrive, Wrench, Shield, Edit, Trash2, History } from 'lucide-react';
 
 export const AssetList: React.FC = () => {
-  const { role } = useAuth();
+  const { user, role } = useAuth();
   const { assets, createAsset, updateAsset, deleteAsset, getAssetHistory, departments } = useTickets();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -168,6 +168,45 @@ export const AssetList: React.FC = () => {
                       >
                         <History className="w-3.5 h-3.5 mr-1" /> History ({history.length})
                       </Button>
+                      {(role === 'admin' || user?.id === 'usr-superadmin') && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingAsset(a);
+                              setAssetTag(a.asset_tag);
+                              setDeviceName(a.device_name);
+                              setDeviceType(a.device_type);
+                              setBrand(a.brand);
+                              setModel(a.model);
+                              setSerialNumber(a.serial_number);
+                              setDepartmentId(a.department_id);
+                              setLocation(a.location);
+                              setStatus(a.status);
+                              setRemarks(a.remarks || '');
+                              setShowFormModal(true);
+                            }}
+                            className="text-sky-700 hover:text-sky-900 cursor-pointer text-xs"
+                            title="Edit Asset"
+                          >
+                            <Edit className="w-3.5 h-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete asset "${a.asset_tag}"?`)) {
+                                deleteAsset(a.id);
+                              }
+                            }}
+                            className="text-rose-600 hover:text-rose-900 hover:bg-rose-50 cursor-pointer text-xs font-semibold"
+                            title="Delete Asset"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1 text-rose-500" /> Delete
+                          </Button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 );

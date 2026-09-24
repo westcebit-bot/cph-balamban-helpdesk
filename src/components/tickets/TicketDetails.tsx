@@ -19,7 +19,8 @@ import {
   Wrench, 
   RotateCcw, 
   ShieldCheck, 
-  Send 
+  Send,
+  Trash2
 } from 'lucide-react';
 
 interface TicketDetailsProps {
@@ -29,7 +30,7 @@ interface TicketDetailsProps {
 
 export const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onClose }) => {
   const { user, role } = useAuth();
-  const { updateTicketStatus, assignTicket, reopenTicket, addComment, getTicketComments } = useTickets();
+  const { updateTicketStatus, assignTicket, reopenTicket, addComment, getTicketComments, deleteTicket } = useTickets();
 
   const [activeTab, setActiveTab] = useState<'details' | 'timeline'>('details');
   const [newCommentText, setNewCommentText] = useState('');
@@ -194,6 +195,28 @@ export const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onClose })
                   </Button>
                 </>
               )}
+            </div>
+          )}
+
+          {/* Superadmin Control Bar */}
+          {(role === 'admin' || user?.id === 'usr-superadmin') && (
+            <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-lg flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-rose-700" />
+                <span className="text-xs font-bold text-rose-950">Superadmin Control:</span>
+              </div>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={async () => {
+                  if (window.confirm(`Are you sure you want to permanently delete ticket ${ticket.ticket_number}?`)) {
+                    await deleteTicket(ticket.id);
+                    onClose();
+                  }
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Force Delete Ticket
+              </Button>
             </div>
           )}
 

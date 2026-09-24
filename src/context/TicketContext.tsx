@@ -45,6 +45,7 @@ interface TicketContextType {
   auditLogs: AuditLog[];
   comments: Record<string, TicketComment[]>;
   createTicket: (payload: NewTicketPayload) => Promise<Ticket>;
+  deleteTicket: (ticketId: string) => Promise<boolean>;
   updateTicketStatus: (ticketId: string, status: TicketStatus, reasonOrSummary?: string) => Promise<boolean>;
   assignTicket: (ticketId: string, technicianId: string) => Promise<boolean>;
   reopenTicket: (ticketId: string, reason: string) => Promise<boolean>;
@@ -522,6 +523,22 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return true;
   };
 
+  const deleteTicket = async (ticketId: string): Promise<boolean> => {
+    const target = tickets.find((t) => t.id === ticketId);
+    if (!target) return false;
+
+    setTickets((prev) => prev.filter((t) => t.id !== ticketId));
+    addAuditLog('Ticket Force Deleted', 'tickets', ticketId, { ticket_number: target.ticket_number, title: target.title });
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('tickets').delete().eq('id', ticketId).then(({ error }) => {
+        if (error) console.warn('[Supabase Delete Ticket Error]:', error);
+      });
+    }
+
+    return true;
+  };
+
   const getTicketComments = (ticketId: string) => {
     return comments[ticketId] || [];
   };
@@ -540,6 +557,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         auditLogs,
         comments,
         createTicket,
+        deleteTicket,
         updateTicketStatus,
         assignTicket,
         reopenTicket,
