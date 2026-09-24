@@ -79,17 +79,17 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 w-full">
+    <div className="h-screen w-screen flex flex-col bg-slate-100 text-slate-900 overflow-hidden">
       <HeaderBrand />
       <Navbar
         onOpenNewTicket={() => setIsSubmitModalOpen(true)}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
-      <div className="flex-1 flex w-full">
+      <div className="flex-1 flex overflow-hidden w-full">
         <Sidebar currentTab={currentTab} onSelectTab={setCurrentTab} />
 
-        <main className="flex-1 p-3 md:p-5 overflow-x-hidden w-full">
+        <main className="flex-1 p-3 md:p-4 overflow-y-auto w-full bg-slate-100">
           {renderTabContent()}
         </main>
       </div>
