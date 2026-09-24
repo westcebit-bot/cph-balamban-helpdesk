@@ -246,9 +246,36 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .channel('public-tickets-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'tickets' },
-        () => {
-          fetchCloudTickets();
+        { event: 'UPDATE', schema: 'public', table: 'tickets' },
+        (payload) => {
+          if (payload.new && (payload.new as any).id) {
+            setTickets((prev) =>
+              prev.map((t) => (t.id === (payload.new as any).id ? { ...t, ...(payload.new as Ticket) } : t))
+            );
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'tickets' },
+        (payload) => {
+          if (payload.new && (payload.new as any).id) {
+            setTickets((prev) => {
+              const exists = prev.some((t) => t.id === (payload.new as any).id);
+              return exists
+                ? prev.map((t) => (t.id === (payload.new as any).id ? { ...t, ...(payload.new as Ticket) } : t))
+                : [payload.new as Ticket, ...prev];
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'tickets' },
+        (payload) => {
+          if (payload.old && (payload.old as any).id) {
+            setTickets((prev) => prev.filter((t) => t.id !== (payload.old as any).id));
+          }
         }
       )
       .on(
@@ -351,6 +378,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const now = new Date().toISOString();
     const oldStatus = target.status;
 
+    let updatedTicketObj: Ticket = { ...target };
     setTickets((prev) =>
       prev.map((t) => {
         if (t.id === ticketId) {
@@ -364,6 +392,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             on_hold_reason: newStatus === 'ON HOLD' ? reasonOrSummary : t.on_hold_reason,
             resolution_summary: newStatus === 'RESOLVED' ? reasonOrSummary : t.resolution_summary,
           };
+          updatedTicketObj = updated;
           return updated;
         }
         return t;
@@ -375,18 +404,9 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (isSupabaseConfigured && supabase) {
       supabase
         .from('tickets')
-        .update({
-          status: newStatus,
-          updated_at: now,
-          first_responded_at: target.first_responded_at || (newStatus !== 'NEW' ? now : undefined),
-          resolved_at: newStatus === 'RESOLVED' ? now : target.resolved_at,
-          closed_at: newStatus === 'CLOSED' ? now : target.closed_at,
-          on_hold_reason: newStatus === 'ON HOLD' ? reasonOrSummary : target.on_hold_reason,
-          resolution_summary: newStatus === 'RESOLVED' ? reasonOrSummary : target.resolution_summary,
-        })
-        .eq('id', ticketId)
+        .upsert([updatedTicketObj])
         .then(({ error }) => {
-          if (error) console.warn('[Supabase Status Update Error]:', error);
+          if (error) console.warn('[Supabase Status Upsert Error]:', error);
         });
     }
 
