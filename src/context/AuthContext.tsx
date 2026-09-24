@@ -28,7 +28,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SYSTEM_BUILD_VERSION = 'v2.0_VERCEL_FORCE_PURGE_FINAL_V11';
+const SYSTEM_BUILD_VERSION = 'v2.0_UNIFIED_USERS_SYNC_V13';
 
 const isBlockedUser = (u: UserProfile | string): boolean => {
   if (typeof u === 'string') {
@@ -103,9 +103,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return defaultBlocked;
   });
 
-  // Sync usersList to localStorage whenever usersList changes
+  // Sync usersList to localStorage & BroadcastChannel whenever usersList changes
   useEffect(() => {
     localStorage.setItem('cph_helpdesk_users', JSON.stringify(usersList));
+    try {
+      const ch = new BroadcastChannel('cph_helpdesk_users_sync');
+      ch.postMessage({ type: 'USERS_SYNC', timestamp: Date.now() });
+      ch.close();
+    } catch (e) {}
   }, [usersList]);
 
   // Sync current user ID to localStorage whenever current user changes
@@ -117,14 +122,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  // Supabase Cloud Realtime DB Sync for Users
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const client = supabase;
+
+    const fetchCloudUsers = async () => {
+      try {
+        const { data, error } = await client.from('user_profiles').select('*');
+        if (!error && data && data.length > 0) {
+          const sanitized = sanitizeUsers(data);
+          setUsersList(sanitized);
+          localStorage.setItem('cph_helpdesk_users', JSON.stringify(sanitized));
+        } else if (!error && data && data.length === 0) {
+          await client.from('user_profiles').upsert(sanitizeUsers(INITIAL_USERS));
+        }
+      } catch (err) {
+        console.warn('[Supabase Sync] Users fetch fallback:', err);
+      }
+    };
+
+    fetchCloudUsers();
+
+    const channel = client
+      .channel('public-users-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_profiles' },
+        () => {
+          fetchCloudUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (client && channel) {
+        client.removeChannel(channel);
+      }
+    };
+  }, []);
+
   // Real-time synchronization across normal browser tabs
   useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('cph_helpdesk_users_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'USERS_SYNC') {
+          const savedUsers = localStorage.getItem('cph_helpdesk_users');
+          if (savedUsers) {
+            try {
+              const parsed = JSON.parse(savedUsers);
+              if (Array.isArray(parsed)) setUsersList(sanitizeUsers(parsed));
+            } catch (err) {}
+          }
+        }
+      };
+    } catch (e) {}
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'cph_helpdesk_users' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) {
-            setUsersList(parsed);
+            setUsersList(sanitizeUsers(parsed));
             const savedUserId = localStorage.getItem('cph_helpdesk_current_user_id');
             if (savedUserId) {
               const found = parsed.find((u: UserProfile) => u.id === savedUserId);
@@ -156,7 +217,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (channel) channel.close();
+    };
   }, []);
 
   const switchUser = (userId: string) => {
@@ -207,6 +271,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return unique;
     });
 
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('user_profiles').delete().eq('id', userId).then(({ error }) => {
+        if (error) console.warn('[Supabase Delete User Error]:', error);
+      });
+    }
+
     // If active user was deleted, log out
     if (user && user.id === userId) {
       setUser(null);
@@ -215,16 +285,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Toggle active/inactive status
   const toggleUserStatus = (userId: string) => {
+    let newStatus = false;
     setUsersList((prev) => {
       const updated = prev.map((u) => {
         if (u.id === userId) {
-          return { ...u, is_active: !u.is_active };
+          newStatus = !u.is_active;
+          return { ...u, is_active: newStatus };
         }
         return u;
       });
       localStorage.setItem('cph_helpdesk_users', JSON.stringify(updated));
       return updated;
     });
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('user_profiles').update({ is_active: newStatus }).eq('id', userId).then(({ error }) => {
+        if (error) console.warn('[Supabase Toggle User Status Error]:', error);
+      });
+    }
 
     if (user && user.id === userId) {
       setUser((prev) => (prev ? { ...prev, is_active: !prev.is_active } : null));
@@ -329,6 +407,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedList = [newUser, ...usersList];
       setUsersList(updatedList);
       localStorage.setItem('cph_helpdesk_users', JSON.stringify(updatedList));
+
+      if (isSupabaseConfigured && supabase) {
+        supabase.from('user_profiles').insert([newUser]).then(({ error }) => {
+          if (error) console.warn('[Supabase Insert User Error]:', error);
+        });
+      }
+
       setUser(newUser);
       setIsLoading(false);
 
