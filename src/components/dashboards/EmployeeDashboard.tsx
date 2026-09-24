@@ -10,7 +10,12 @@ export const EmployeeDashboard: React.FC<{ onOpenNewTicket: () => void }> = ({ o
   const { user } = useAuth();
   const { tickets } = useTickets();
 
-  const myTickets = tickets.filter((t) => t.requester_id === user?.id);
+  const myTickets = tickets.filter(
+    (t) =>
+      t.requester_id === user?.id ||
+      (t.requester_name && user?.full_name && t.requester_name.toLowerCase() === user.full_name.toLowerCase()) ||
+      (t.requester_email && user?.email && t.requester_email.toLowerCase() === user.email.toLowerCase())
+  );
   const activeCount = myTickets.filter((t) => t.status !== 'RESOLVED' && t.status !== 'CLOSED').length;
   const resolvedCount = myTickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
 

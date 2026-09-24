@@ -49,7 +49,12 @@ export const TicketList: React.FC<TicketListProps> = ({ initialFilter, titleOver
   // Filtering logic
   const filteredTickets = tickets.filter((t) => {
     // Role-based visibility enforcement
-    if (role === 'employee' && t.requester_id !== user?.id) {
+    if (
+      role === 'employee' &&
+      t.requester_id !== user?.id &&
+      t.requester_name?.toLowerCase() !== user?.full_name?.toLowerCase() &&
+      t.requester_email?.toLowerCase() !== user?.email?.toLowerCase()
+    ) {
       return false;
     }
     if (role === 'supervisor' && t.department_id !== user?.department_id && t.requester_id !== user?.id) {
