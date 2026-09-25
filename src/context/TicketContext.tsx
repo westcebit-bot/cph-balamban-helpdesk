@@ -212,9 +212,27 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(INITIAL_TICKETS));
             localStorage.setItem('cph_helpdesk_initialized', 'true');
           } else {
-            setTickets(data);
-            localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(data));
-            localStorage.setItem('cph_helpdesk_initialized', 'true');
+            setTickets((prevLocal) => {
+              const map = new Map<string, Ticket>();
+              // Add cloud data first
+              data.forEach((t: Ticket) => map.set(t.id, t));
+              // Preserve any locally created tickets that might not be in cloud yet
+              prevLocal.forEach((t: Ticket) => {
+                if (!map.has(t.id)) {
+                  map.set(t.id, t);
+                  if (client) {
+                    client.from('tickets').upsert([t]).then(({ error }) => {
+                      if (error) console.warn('[Supabase Auto-Sync Unsynced Ticket Error]:', error);
+                    });
+                  }
+                }
+              });
+              const merged = Array.from(map.values());
+              merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+              localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(merged));
+              localStorage.setItem('cph_helpdesk_initialized', 'true');
+              return merged;
+            });
           }
         } else {
           console.warn('[Supabase Sync] Ticket fetch fallback to local:', error?.message);
@@ -346,13 +364,19 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updated_at: new Date().toISOString(),
     };
 
-    setTickets((prev) => [newTicket, ...prev]);
+    setTickets((prev) => {
+      const updated = [newTicket, ...prev];
+      localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(updated));
+      localStorage.setItem('cph_helpdesk_initialized', 'true');
+      return updated;
+    });
+
     addAuditLog('Ticket Created', 'tickets', newTicket.id, { ticket_number: ticketNumber, priority: payload.priority });
 
-    // Sync to Supabase Cloud if configured
+    // Sync to Supabase Cloud immediately if configured
     if (isSupabaseConfigured && supabase) {
-      supabase.from('tickets').insert([newTicket]).then(({ error }) => {
-        if (error) console.warn('[Supabase Insert Ticket Error]:', error);
+      supabase.from('tickets').upsert([newTicket]).then(({ error }) => {
+        if (error) console.warn('[Supabase Upsert Ticket Error]:', error);
       });
     }
 
