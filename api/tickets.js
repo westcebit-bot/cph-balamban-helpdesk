@@ -1,9 +1,9 @@
 // Vercel Serverless Function for Same-Domain First-Party Ticket Synchronization
 
-let memoryTicketsStore: any[] = [];
+let memoryTicketsStore = [];
 let lastUpdated = Date.now();
 
-export default function handler(req: any, res: any) {
+export default function handler(req, res) {
   // CORS Headers for multi-browser support
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
