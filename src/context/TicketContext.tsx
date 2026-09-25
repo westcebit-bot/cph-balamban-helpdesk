@@ -62,6 +62,41 @@ const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
 const TICKET_BUILD_VERSION = 'v2.0_UNIFIED_TICKETS_V17';
 
+const sanitizeTicketForSupabase = (t: Ticket) => {
+  return {
+    id: t.id,
+    ticket_number: t.ticket_number,
+    title: t.title,
+    description: t.description,
+    requester_id: t.requester_id,
+    requester_name: t.requester_name,
+    requester_email: t.requester_email || null,
+    department_id: t.department_id,
+    department_name: t.department_name,
+    unit: t.unit || null,
+    contact_number: t.contact_number || null,
+    category_id: t.category_id,
+    category_name: t.category_name,
+    subcategory_id: t.subcategory_id || null,
+    subcategory_name: t.subcategory_name || null,
+    priority: t.priority,
+    status: t.status,
+    device_type: t.device_type || null,
+    location: t.location || null,
+    asset_tag: t.asset_tag || null,
+    assigned_technician_id: t.assigned_technician_id || null,
+    assigned_technician_name: t.assigned_technician_name || null,
+    first_responded_at: t.first_responded_at || null,
+    resolved_at: t.resolved_at || null,
+    closed_at: t.closed_at || null,
+    on_hold_reason: t.on_hold_reason || null,
+    resolution_summary: t.resolution_summary || null,
+    reopened_count: t.reopened_count ?? 0,
+    created_at: t.created_at,
+    updated_at: t.updated_at,
+  };
+};
+
 export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
@@ -335,7 +370,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Sync to Supabase Cloud immediately if configured
     if (isSupabaseConfigured && supabase) {
-      supabase.from('tickets').upsert([newTicket]).then(({ error }) => {
+      supabase.from('tickets').upsert([sanitizeTicketForSupabase(newTicket)]).then(({ error }) => {
         if (error) console.warn('[Supabase Upsert Ticket Error]:', error);
       });
     }
@@ -392,7 +427,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (isSupabaseConfigured && supabase) {
       supabase
         .from('tickets')
-        .upsert([updatedTicketObj])
+        .upsert([sanitizeTicketForSupabase(updatedTicketObj)])
         .then(({ error }) => {
           if (error) console.warn('[Supabase Status Upsert Error]:', error);
         });
@@ -432,7 +467,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (isSupabaseConfigured && supabase) {
       supabase
         .from('tickets')
-        .upsert([updatedTicketObj])
+        .upsert([sanitizeTicketForSupabase(updatedTicketObj)])
         .then(({ error }) => {
           if (error) console.warn('[Supabase Assign Ticket Error]:', error);
         });
