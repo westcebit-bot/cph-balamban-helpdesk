@@ -1,53 +1,30 @@
-// High-reliability public cloud sync relay for environments without Supabase keys
-const RELAY_URL = 'https://api.restful-api.dev/objects/cph_balamban_helpdesk_tickets_v1';
+// High-reliability first-party cloud sync relay for cross-browser synchronization
+
+const API_SYNC_URL = '/api/tickets';
 
 export const pushCloudKVTickets = async (tickets: any[]) => {
   try {
-    const payload = {
-      name: 'cph_balamban_helpdesk_tickets_v1',
-      data: {
-        tickets,
-        updated_at: Date.now()
-      }
-    };
-
-    const res = await fetch(RELAY_URL, {
-      method: 'PUT',
+    await fetch(API_SYNC_URL, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ tickets, updated_at: Date.now() })
     });
-
-    if (!res.ok) {
-      // Object not created yet, create it via POST
-      await fetch('https://api.restful-api.dev/objects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: 'cph_balamban_helpdesk_tickets_v1',
-          name: 'cph_balamban_helpdesk_tickets_v1',
-          data: {
-            tickets,
-            updated_at: Date.now()
-          }
-        })
-      });
-    }
   } catch (err) {
-    console.warn('[Cloud KV Sync Push Error]:', err);
+    console.warn('[First-Party Ticket Sync Push Error]:', err);
   }
 };
 
 export const fetchCloudKVTickets = async (): Promise<any[] | null> => {
   try {
-    const res = await fetch(RELAY_URL);
+    const res = await fetch(API_SYNC_URL);
     if (res.ok) {
       const json = await res.json();
-      if (json?.data?.tickets && Array.isArray(json.data.tickets)) {
-        return json.data.tickets;
+      if (json && Array.isArray(json.tickets)) {
+        return json.tickets;
       }
     }
   } catch (err) {
-    console.warn('[Cloud KV Sync Fetch Error]:', err);
+    console.warn('[First-Party Ticket Sync Fetch Error]:', err);
   }
   return null;
 };
