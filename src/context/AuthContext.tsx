@@ -122,6 +122,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  // Sync active user state whenever usersList changes
+  useEffect(() => {
+    if (user) {
+      const found = usersList.find((u) => u.id === user.id);
+      if (found) {
+        setUser(found);
+      }
+    }
+  }, [usersList]);
+
   // Supabase Cloud Realtime DB Sync for Users
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -134,6 +144,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const sanitized = sanitizeUsers(data);
           setUsersList(sanitized);
           localStorage.setItem('cph_helpdesk_users', JSON.stringify(sanitized));
+          const currentUserId = localStorage.getItem('cph_helpdesk_current_user_id');
+          if (currentUserId) {
+            const found = sanitized.find((u) => u.id === currentUserId);
+            if (found) setUser(found);
+          }
         } else if (!error && data && data.length === 0) {
           await client.from('user_profiles').upsert(sanitizeUsers(INITIAL_USERS));
         }
@@ -185,11 +200,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) {
-            setUsersList(sanitizeUsers(parsed));
+            const sanitized = sanitizeUsers(parsed);
+            setUsersList(sanitized);
             const savedUserId = localStorage.getItem('cph_helpdesk_current_user_id');
             if (savedUserId) {
-              const found = parsed.find((u: UserProfile) => u.id === savedUserId);
-              setUser(found || null);
+              const found = sanitized.find((u: UserProfile) => u.id === savedUserId);
+              if (found) setUser(found);
             }
           }
         } catch (err) {
@@ -230,12 +246,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Update profile details and persist immediately
+  // Update profile details and persist immediately to localStorage, BroadcastChannel & Supabase Cloud DB
   const updateUserProfile = (userId: string, data: Partial<UserProfile>) => {
+    let updatedUserObj: UserProfile | null = null;
+
     setUsersList((prev) => {
       const updated = prev.map((u) => {
         if (u.id === userId) {
-          return { ...u, ...data };
+          updatedUserObj = { ...u, ...data };
+          return updatedUserObj;
         }
         return u;
       });
@@ -243,9 +262,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // Update active user state if updating current logged-in user
     if (user && user.id === userId) {
       setUser((prev) => (prev ? { ...prev, ...data } : null));
+    }
+
+    try {
+      const ch = new BroadcastChannel('cph_helpdesk_users_sync');
+      ch.postMessage({ type: 'USERS_SYNC', timestamp: Date.now() });
+      ch.close();
+    } catch (e) {}
+
+    if (isSupabaseConfigured && supabase) {
+      const targetUser = usersList.find((u) => u.id === userId);
+      const userToSave = targetUser ? { ...targetUser, ...data } : updatedUserObj;
+      if (userToSave) {
+        supabase.from('user_profiles').upsert([userToSave]).then(({ error }) => {
+          if (error) console.warn('[Supabase Update User Profile Error]:', error);
+        });
+      }
     }
   };
 
