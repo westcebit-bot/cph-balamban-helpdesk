@@ -126,7 +126,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user) {
       const found = usersList.find((u) => u.id === user.id);
-      if (found) {
+      if (
+        found &&
+        (found.avatar_url !== user.avatar_url ||
+          found.full_name !== user.full_name ||
+          found.phone !== user.phone ||
+          found.location !== user.location ||
+          found.password !== user.password)
+      ) {
         setUser(found);
       }
     }

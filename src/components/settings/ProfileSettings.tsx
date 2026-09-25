@@ -12,7 +12,7 @@ export const ProfileSettings: React.FC = () => {
   const [location, setLocation] = useState(user?.location || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
 
-  // Keep state synced with active user profile
+  // Keep state initialized for active user profile
   useEffect(() => {
     if (user) {
       setFullName(user.full_name || '');
@@ -20,7 +20,7 @@ export const ProfileSettings: React.FC = () => {
       setLocation(user.location || '');
       setAvatarUrl(user.avatar_url || '');
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -40,6 +40,7 @@ export const ProfileSettings: React.FC = () => {
       reader.onload = (uploadEvent) => {
         const dataUrl = uploadEvent.target?.result;
         if (typeof dataUrl === 'string') {
+          setAvatarUrl(dataUrl);
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
@@ -66,8 +67,6 @@ export const ProfileSettings: React.FC = () => {
               ctx.drawImage(img, 0, 0, width, height);
               const compressed = canvas.toDataURL('image/jpeg', 0.85);
               setAvatarUrl(compressed);
-            } else {
-              setAvatarUrl(dataUrl);
             }
           };
           img.src = dataUrl;
