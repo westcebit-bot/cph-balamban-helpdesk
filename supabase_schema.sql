@@ -76,6 +76,4 @@ CREATE POLICY "Allow public full access to tickets" ON public.tickets FOR ALL US
 CREATE POLICY "Allow public full access to ticket_comments" ON public.ticket_comments FOR ALL USING (true) WITH CHECK (true);
 
 -- 5. Enable Supabase Postgres Realtime for Instant Cross-Browser Synchronization
-ALTER PUBLICATION supabase_realtime ADD TABLE public.user_profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.tickets;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.ticket_comments;
+ALTER PUBLICATION supabase_realtime SET TABLE public.user_profiles, public.tickets, public.ticket_comments;
