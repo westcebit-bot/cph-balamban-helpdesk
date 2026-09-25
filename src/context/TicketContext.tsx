@@ -59,7 +59,7 @@ interface TicketContextType {
 
 const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
-const TICKET_BUILD_VERSION = 'v2.0_UNIFIED_TICKETS_V15';
+const TICKET_BUILD_VERSION = 'v2.0_UNIFIED_TICKETS_V17';
 
 export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -268,36 +268,9 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .channel('public-tickets-realtime')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'tickets' },
-        (payload) => {
-          if (payload.new && (payload.new as any).id) {
-            setTickets((prev) =>
-              prev.map((t) => (t.id === (payload.new as any).id ? { ...t, ...(payload.new as Ticket) } : t))
-            );
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'tickets' },
-        (payload) => {
-          if (payload.new && (payload.new as any).id) {
-            setTickets((prev) => {
-              const exists = prev.some((t) => t.id === (payload.new as any).id);
-              return exists
-                ? prev.map((t) => (t.id === (payload.new as any).id ? { ...t, ...(payload.new as Ticket) } : t))
-                : [payload.new as Ticket, ...prev];
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'tickets' },
-        (payload) => {
-          if (payload.old && (payload.old as any).id) {
-            setTickets((prev) => prev.filter((t) => t.id !== (payload.old as any).id));
-          }
+        { event: '*', schema: 'public', table: 'tickets' },
+        () => {
+          fetchCloudTickets();
         }
       )
       .on(
@@ -309,7 +282,14 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       )
       .subscribe();
 
+    // 3-second background polling interval to guarantee cross-browser sync even across isolated browser profiles
+    const pollInterval = setInterval(() => {
+      fetchCloudTickets();
+      fetchCloudComments();
+    }, 3000);
+
     return () => {
+      clearInterval(pollInterval);
       if (client && channel) {
         client.removeChannel(channel);
       }
