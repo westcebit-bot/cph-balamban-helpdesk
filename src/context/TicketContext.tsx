@@ -244,14 +244,28 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } catch (e) {}
       }
 
-      if (!cloudData) {
-        cloudData = await fetchCloudKVTickets();
+      // Always attempt first-party relay (/api/tickets) for Brave Shields & multi-browser compatibility
+      const kvData = await fetchCloudKVTickets();
+      if (kvData && Array.isArray(kvData) && kvData.length > 0) {
+        if (!cloudData) {
+          cloudData = kvData;
+        } else {
+          const map = new Map<string, Ticket>();
+          cloudData.forEach((t) => map.set(t.id, t));
+          kvData.forEach((t) => {
+            const existing = map.get(t.id);
+            if (!existing || new Date(t.updated_at).getTime() > new Date(existing.updated_at).getTime()) {
+              map.set(t.id, t);
+            }
+          });
+          cloudData = Array.from(map.values());
+        }
       }
 
       if (cloudData && Array.isArray(cloudData)) {
         setTickets((prevLocal) => {
           const map = new Map<string, Ticket>();
-          cloudData.forEach((t: Ticket) => map.set(t.id, t));
+          cloudData!.forEach((t: Ticket) => map.set(t.id, t));
           prevLocal.forEach((t: Ticket) => {
             if (!map.has(t.id)) map.set(t.id, t);
           });
@@ -402,8 +416,8 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const oldStatus = target.status;
 
     let updatedTicketObj: Ticket = { ...target };
-    setTickets((prev) =>
-      prev.map((t) => {
+    setTickets((prev) => {
+      const updatedList = prev.map((t) => {
         if (t.id === ticketId) {
           const updated: Ticket = {
             ...t,
@@ -419,8 +433,11 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return updated;
         }
         return t;
-      })
-    );
+      });
+      localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(updatedList));
+      pushCloudKVTickets(updatedList);
+      return updatedList;
+    });
 
     addAuditLog(`Status Changed (${oldStatus} ➔ ${newStatus})`, 'tickets', ticketId, { reasonOrSummary });
 
@@ -458,9 +475,12 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updated_at: new Date().toISOString(),
     };
 
-    setTickets((prev) =>
-      prev.map((t) => (t.id === ticketId ? updatedTicketObj : t))
-    );
+    setTickets((prev) => {
+      const updatedList = prev.map((t) => (t.id === ticketId ? updatedTicketObj : t));
+      localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(updatedList));
+      pushCloudKVTickets(updatedList);
+      return updatedList;
+    });
 
     addAuditLog('Ticket Assigned', 'tickets', ticketId, { technician: assignedName });
 
@@ -487,19 +507,22 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const target = tickets.find((t) => t.id === ticketId);
     if (!target) return false;
 
-    setTickets((prev) =>
-      prev.map((t) => {
+    setTickets((prev) => {
+      const updatedList: Ticket[] = prev.map((t) => {
         if (t.id === ticketId) {
           return {
             ...t,
-            status: 'IN PROGRESS',
+            status: 'IN PROGRESS' as TicketStatus,
             reopened_count: (t.reopened_count || 0) + 1,
             updated_at: new Date().toISOString(),
           };
         }
         return t;
-      })
-    );
+      });
+      localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(updatedList));
+      pushCloudKVTickets(updatedList);
+      return updatedList;
+    });
 
     if (isSupabaseConfigured && supabase) {
       supabase
