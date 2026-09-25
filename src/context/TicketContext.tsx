@@ -21,6 +21,7 @@ import {
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { pushCloudKVTickets, fetchCloudKVTickets } from '../lib/cloudSync';
 
 interface NewTicketPayload {
   title: string;
@@ -190,108 +191,86 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  // Supabase Cloud Realtime DB Sync & Hydration
+  // Cloud DB & Relay Sync Hydration (Supports Supabase & Cloud KV Relay for isolated browser profiles)
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
-    const client = supabase;
-
-    // Fetch Tickets from Supabase Cloud
     const fetchCloudTickets = async () => {
-      try {
-        const { data, error } = await client
-          .from('tickets')
-          .select('*')
-          .order('created_at', { ascending: false });
+      let cloudData: Ticket[] | null = null;
 
-        if (!error && data) {
-          const hasInitialized = localStorage.getItem('cph_helpdesk_initialized');
-          if (data.length === 0 && hasInitialized !== 'true') {
-            // Seed INITIAL_TICKETS to Supabase cloud only on first launch
-            await client.from('tickets').upsert(INITIAL_TICKETS);
-            setTickets(INITIAL_TICKETS);
-            localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(INITIAL_TICKETS));
-            localStorage.setItem('cph_helpdesk_initialized', 'true');
-          } else {
-            setTickets((prevLocal) => {
-              const map = new Map<string, Ticket>();
-              // Add cloud data first
-              data.forEach((t: Ticket) => map.set(t.id, t));
-              // Preserve any locally created tickets that might not be in cloud yet
-              prevLocal.forEach((t: Ticket) => {
-                if (!map.has(t.id)) {
-                  map.set(t.id, t);
-                  if (client) {
-                    client.from('tickets').upsert([t]).then(({ error }) => {
-                      if (error) console.warn('[Supabase Auto-Sync Unsynced Ticket Error]:', error);
-                    });
-                  }
-                }
-              });
-              const merged = Array.from(map.values());
-              merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-              localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(merged));
-              localStorage.setItem('cph_helpdesk_initialized', 'true');
-              return merged;
-            });
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('tickets')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!error && data && data.length > 0) {
+            cloudData = data;
           }
-        } else {
-          console.warn('[Supabase Sync] Ticket fetch fallback to local:', error?.message);
-        }
-      } catch (err) {
-        console.warn('[Supabase Sync] Ticket fetch fallback:', err);
+        } catch (e) {}
+      }
+
+      if (!cloudData) {
+        cloudData = await fetchCloudKVTickets();
+      }
+
+      if (cloudData && Array.isArray(cloudData)) {
+        setTickets((prevLocal) => {
+          const map = new Map<string, Ticket>();
+          cloudData.forEach((t: Ticket) => map.set(t.id, t));
+          prevLocal.forEach((t: Ticket) => {
+            if (!map.has(t.id)) map.set(t.id, t);
+          });
+          const merged = Array.from(map.values());
+          merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(merged));
+          localStorage.setItem('cph_helpdesk_initialized', 'true');
+          return merged;
+        });
       }
     };
 
-    // Fetch Comments from Supabase Cloud
     const fetchCloudComments = async () => {
-      try {
-        const { data, error } = await client.from('ticket_comments').select('*');
-        if (!error && data && data.length > 0) {
-          const grouped: Record<string, TicketComment[]> = {};
-          data.forEach((c: TicketComment) => {
-            if (!grouped[c.ticket_id]) grouped[c.ticket_id] = [];
-            grouped[c.ticket_id].push(c);
-          });
-          setComments(grouped);
-          localStorage.setItem('cph_helpdesk_comments', JSON.stringify(grouped));
-        }
-      } catch (err) {
-        console.warn('[Supabase Sync] Comment fetch fallback:', err);
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase.from('ticket_comments').select('*');
+          if (!error && data && data.length > 0) {
+            const grouped: Record<string, TicketComment[]> = {};
+            data.forEach((c: TicketComment) => {
+              if (!grouped[c.ticket_id]) grouped[c.ticket_id] = [];
+              grouped[c.ticket_id].push(c);
+            });
+            setComments(grouped);
+            localStorage.setItem('cph_helpdesk_comments', JSON.stringify(grouped));
+          }
+        } catch (err) {}
       }
     };
 
     fetchCloudTickets();
     fetchCloudComments();
 
-    // Subscribe to Realtime PostgreSQL changes for instant sync across browsers
-    const channel = client
-      .channel('public-tickets-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tickets' },
-        () => {
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel('public-tickets-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
           fetchCloudTickets();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ticket_comments' },
-        () => {
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_comments' }, () => {
           fetchCloudComments();
-        }
-      )
-      .subscribe();
+        })
+        .subscribe();
+    }
 
-    // 3-second background polling interval to guarantee cross-browser sync even across isolated browser profiles
     const pollInterval = setInterval(() => {
       fetchCloudTickets();
       fetchCloudComments();
-    }, 3000);
+    }, 2500);
 
     return () => {
       clearInterval(pollInterval);
-      if (client && channel) {
-        client.removeChannel(channel);
+      if (supabase && channel) {
+        supabase.removeChannel(channel);
       }
     };
   }, []);
@@ -348,6 +327,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const updated = [newTicket, ...prev];
       localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(updated));
       localStorage.setItem('cph_helpdesk_initialized', 'true');
+      pushCloudKVTickets(updated);
       return updated;
     });
 
@@ -564,6 +544,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const updated = prev.filter((t) => t.id !== ticketId);
       localStorage.setItem('cph_helpdesk_tickets', JSON.stringify(updated));
       localStorage.setItem('cph_helpdesk_initialized', 'true');
+      pushCloudKVTickets(updated);
       return updated;
     });
     addAuditLog('Ticket Force Deleted', 'tickets', ticketId, { ticket_number: target.ticket_number, title: target.title });
