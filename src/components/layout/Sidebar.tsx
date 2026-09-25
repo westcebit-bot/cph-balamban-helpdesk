@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { isSupabaseConfigured } from '../../lib/supabase';
 import { 
   LayoutDashboard, 
   Ticket as TicketIcon, 
@@ -138,7 +139,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
           </span>
         </div>
         <p className="text-[10px] text-slate-400">Integrated IT Helpdesk System</p>
-        <p className="mt-1 text-[9px] text-slate-500 font-mono">Build: 2026.09.24 &bull; RA 10173</p>
+        <div className="mt-1.5 pt-1.5 border-t border-slate-800/60 flex items-center justify-between text-[9px]">
+          <span className="text-slate-400 font-medium">Cloud DB Sync:</span>
+          {isSupabaseConfigured ? (
+            <span className="text-emerald-400 font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Active Realtime
+            </span>
+          ) : (
+            <span className="text-amber-400 font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Local Standalone
+            </span>
+          )}
+        </div>
       </div>
     </aside>
   );
